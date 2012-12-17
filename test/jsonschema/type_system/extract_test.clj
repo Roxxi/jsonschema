@@ -43,9 +43,15 @@
     (p-is str? "hello!")
     (p-is str? "date(")
     (p-is str? "id(")
-    (p-is num? 5)
-    (p-is-not num? "5")
-    (p-is-not num? nil)
+    (p-is int? 5)
+    (p-is-not real? 5)
+    (p-is real? 5.0)
+    (p-is-not int? 5.0)
+    (p-is real? 1.123456789012345678901234567890)
+    (p-is-not int? "5")
+    (p-is-not int? nil)
+    (p-is-not real? "5")
+    (p-is-not real? nil)
     (p-is bool? true)
     (p-is bool? false)
     (p-is-not bool? nil)
@@ -118,16 +124,16 @@
   
 
 (def complex-doc-type
-  #jsonschema.type_system.types.Document{:properties ["a" "b" "c" "d"], :map {"a" #jsonschema.type_system.types.Scalar{:type :number}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :number} #jsonschema.type_system.types.Scalar{:type :string}}}}, "c" #jsonschema.type_system.types.Document{:properties ["a" "b" "c" "d"], :map {"a" #jsonschema.type_system.types.Scalar{:type :number}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :number} #jsonschema.type_system.types.Scalar{:type :string}}}}, "c" #jsonschema.type_system.types.Scalar{:type :date}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :number}}}}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Document{:properties ["a" "b" "c" "d"], :map {"a" #jsonschema.type_system.types.Scalar{:type :number}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :number} #jsonschema.type_system.types.Scalar{:type :string}}}}, "c" #jsonschema.type_system.types.Scalar{:type :date}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :number}}}} #jsonschema.type_system.types.Scalar{:type :number} #jsonschema.type_system.types.Scalar{:type :string}}}}}})
+  #jsonschema.type_system.types.Document{:properties ["a" "b" "c" "d"], :map {"a" #jsonschema.type_system.types.Scalar{:type :int}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}, "c" #jsonschema.type_system.types.Document{:properties ["a" "b" "c" "d"], :map {"a" #jsonschema.type_system.types.Scalar{:type :int}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}, "c" #jsonschema.type_system.types.Scalar{:type :date}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :int}}}}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Document{:properties ["a" "b" "c" "d"], :map {"a" #jsonschema.type_system.types.Scalar{:type :int}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}, "c" #jsonschema.type_system.types.Scalar{:type :date}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :int}}}} #jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}}})
 
 (def complex-doc-keys-type
-  #jsonschema.type_system.types.Document{:properties [:a :c :b :d], :map {:a #jsonschema.type_system.types.Scalar{:type :number}, :c #jsonschema.type_system.types.Document{:properties [:a :c :b :d], :map {:a #jsonschema.type_system.types.Scalar{:type :number}, :c #jsonschema.type_system.types.Scalar{:type :date}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :number} #jsonschema.type_system.types.Scalar{:type :string}}}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :number}}}}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :number} #jsonschema.type_system.types.Scalar{:type :string}}}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :number} #jsonschema.type_system.types.Document{:properties [:a :c :b :d], :map {:a #jsonschema.type_system.types.Scalar{:type :number}, :c #jsonschema.type_system.types.Scalar{:type :date}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :number} #jsonschema.type_system.types.Scalar{:type :string}}}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :number}}}} #jsonschema.type_system.types.Scalar{:type :string}}}}}})
+  #jsonschema.type_system.types.Document{:properties [:a :c :b :d], :map {:a #jsonschema.type_system.types.Scalar{:type :int}, :c #jsonschema.type_system.types.Document{:properties [:a :c :b :d], :map {:a #jsonschema.type_system.types.Scalar{:type :int}, :c #jsonschema.type_system.types.Scalar{:type :date}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :int}}}}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Document{:properties [:a :c :b :d], :map {:a #jsonschema.type_system.types.Scalar{:type :int}, :c #jsonschema.type_system.types.Scalar{:type :date}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :int}}}} #jsonschema.type_system.types.Scalar{:type :string}}}}}})
   
 ;; TODO add tests here for all the type tests above
 (deftest clojure-extractor-test
   (testing "Testing the ClojureTypeExtractor"
     (t-is nil (map->Scalar {:type :null}))
-    (t-is 5 (map->Scalar {:type :number}))
+    (t-is 5 (map->Scalar {:type :int}))
     (t-is "hello" (map->Scalar {:type :string}))
     (t-is "date(nil)" (map->Scalar {:type :date}))
     (t-is "id(nil)" (map->Scalar {:type :id}))
@@ -137,16 +143,16 @@
         "It shouldn't know what to do with a keyword")
     (t-is [1 2 3]
           #jsonschema.type_system.types.Collection{:coll-of
-                                             #jsonschema.type_system.types.Scalar{:type :number}})
+                                             #jsonschema.type_system.types.Scalar{:type :int}})
     (t-is [1 2 "a"]
           #jsonschema.type_system.types.Collection{:coll-of
                                              #jsonschema.type_system.types.Union{:union-of
-                                                                           #{#jsonschema.type_system.types.Scalar{:type :number}
+                                                                           #{#jsonschema.type_system.types.Scalar{:type :int}
                                                                              #jsonschema.type_system.types.Scalar{:type :string}}}})
     (t-is [1 2 "a" 12 "b"]
           #jsonschema.type_system.types.Collection{:coll-of
                                              #jsonschema.type_system.types.Union{:union-of
-                                                                           #{#jsonschema.type_system.types.Scalar{:type :number}
+                                                                           #{#jsonschema.type_system.types.Scalar{:type :int}
                                                                              #jsonschema.type_system.types.Scalar{:type :string}}}})
     (t-is complex-doc complex-doc-type)
     (t-is complex-doc-keys complex-doc-keys-type)))
@@ -161,5 +167,4 @@
           (let [parsed-js (parse-string (slurp "test/jsonschema/type_system/tweets.js"))
                 extractor (clojure-type-extractor)]
             (map #(extract extractor %) parsed-js))]
-;;      (pprint result) ;; uncomment me to generate structure for document
       (is (coll? result)))))

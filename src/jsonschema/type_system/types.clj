@@ -1,29 +1,13 @@
 (ns jsonschema.type-system.types
-  (:use jsonschema.utils))
+  (:use roxxi.utils.collections))
 
-;; # Special Datatypes
-;; The whole notion here is we want to prove out we can do things
-;; like handle mongo's date and id representations
-
-(defn special-date? [x]
-  (and (clojure.core/string? x)
-       (.startsWith (clojure.string/lower-case x) "date(")
-       (.endsWith x ")")))
-
-(defn special-id? [x]
-  (and (clojure.core/string? x)
-       (.startsWith (clojure.string/lower-case x) "id(")
-       (.endsWith x ")")))
 
 ;; # Type Primitives
 ;; These are the "structures" in which we use to represent type.
 ;; Ultimately, these will be mapped into Avro structures instead of Clojure
 (defprotocol Typeable
-  (getType [this] "Returns the type of whatever this is"))
+  (getType [this] "Returns the type of this Typealbe thing"))
 
-(defrecord Scalar [type]
-  Typeable
-  (getType [this] type))
 
 (defrecord Union [union-of]
   Typeable
@@ -37,14 +21,37 @@
   Typeable
   (getType [this] :collection))
 
-;; ## Factory methods
-(defn make-scalar [type]  
-  (Scalar. type))
+(defrecord Scalar [type]
+  Typeable
+  (getType [this] type))
 
-(defn make-special [x]
-  (cond
-   (special-date? x) (make-scalar :date),
-   (special-id? x) (make-scalar :id)))
+(defprotocol TypeRegistry
+  (registered-types [this] "Returns a set of the configured sigils representing valid types")
+  (valid-type? [this type-sigil] "Returns whether or not this sigil represents a valid type"))
+
+(deftype ScalarTypeRegistry [type-sigils-coll]
+  TypeRegistry
+  (registered-types [this] (set type-sigils-coll))
+  (valid-type? [this type-sigil] (contains? type-sigils-coll type-sigil)))
+
+
+(def ^{:private true} default-scalar-types
+  #{:int :real :string :date :id :null :bool})
+
+;; ## Factory methods
+(defn make-scalar-type-registry [type-sigil-coll]
+  (ScalarTypeRegistry. type-sigil-coll))
+
+(def ^{:private true} scalar-type-registry
+  (make-scalar-type-registry default-scalar-types))
+
+(defn make-scalar [type]
+  (if (valid-type? scalar-type-registry type)
+    (Scalar. type)
+    (throw
+     (Exception. (str "Invalid scalar type: " type
+                      ", valid types: "
+                      (registered-types scalar-type-registry))))))
   
 (defn make-union-with 
   [& types]
@@ -72,7 +79,7 @@
   (= (count a-seq) 1))
 
 (defn make-collection
-  "If a collection contains no documents, there
+  "If a collection contains no types, there
    will be no types. As such, this will be a collection
    :of :nothing"
   [types]
@@ -86,15 +93,58 @@
 (defn make-collection-with [& types]
   (make-collection types))
 
+;; # Predicates
+
+(defmacro generate-scalar-predicate [type]
+  `(defn ~(symbol (str (name type) "-type?")) [some-type#]
+     (= (getType some-type#) ~type)))
+
+;; e.g. null-type? bool-type? etc
+(generate-scalar-predicate :null)
+(generate-scalar-predicate :bool)
+(generate-scalar-predicate :int)
+(generate-scalar-predicate :real)
+(generate-scalar-predicate :string)
+(generate-scalar-predicate :id)
+(generate-scalar-predicate :date)
+
+(defn scalar-type?
+  ([x] (scalar-type? scalar-type-registry x))
+  ([reg x]
+     (and (satisfies? Typeable x)
+          (valid-type? reg (getType x)))))
+
+(defn document-type? [x]
+  (and
+   (satisfies? Typeable x)
+   (= (getType x) :document)))
+
+(defn union-type? [x]
+  (and (satisfies? Typeable x)
+       (= (getType x) :union)))
+
+(defn collection-type? [x]
+  (and (satisfies? Typeable x)
+       (= (getType x) :collection)))
+
+
 ;; # Helpers
-(defn- document-type? [x]
-  (= (getType x) :document))
+
+(defn empty-collection? [collection]
+  (and (collection-type? collection)
+       (= (:coll-of collection) :nothing)))
+
+(defn empty-document? [document]
+  (and (document-type? document)
+       (empty? (:map document))
+       (empty? (:properties document))))
 
 (defn document-types [union]
    (set (filter document-type? (:union-of union))))
 
 (defn non-document-types [union]
   (set (remove document-type? (:union-of union))))
+
 
 
 

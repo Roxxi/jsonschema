@@ -13,7 +13,7 @@
     (or (#{:document} type-sigil)
         (#{:collection} type-sigil)
         (#{:union} type-sigil)
-        (and (#{:number :string :date :id :null :bool} type-sigil)
+        (and (#{:int :real :string :date :id :null :bool} type-sigil)
              :scalar))))
 
 ;; # Core abstraction of merging types
@@ -22,15 +22,19 @@
   "Given two types, merges the types according to rules specified in this document"
   (type-merge [merger type1 type2]))
 
-(deftype TypeMergerImpl []
+(deftype TypeMergerImpl [type*type=>merge-fn]
   TypeMerger
   (type-merge [m t1 t2]
     (let [merge-fn (get-in type*type=>merge-fn [(type-type t1) (type-type t2)])]
       (merge-fn t1 t2))))
 
+(defn make-type-merger [type*type=>merge-fn]
+  (TypeMergerImpl. type*type=>merge-fn))
 
+;; Local for use in this file
 (defn type-merger []
-  (TypeMergerImpl.))
+  (make-type-merger type*type=>merge-fn))
+
 
 ;; ## Merging of all of the various types
 ;; ### Scalar merging
@@ -165,10 +169,15 @@
                 :collection merge-collection-collection
                 :union merge-collection-union}
    :union {:scalar merge-union-scalar
-                :document merge-union-document
-                :collection merge-union-collection
-                :union merge-union-union}
-   })
+           :document merge-union-document
+           :collection merge-union-collection
+           :union merge-union-union}})
+
+(defn extend-merge-fn-mappings [merge-fn-map [type1 type2 merge-fn]]
+    (assoc-in merge-fn-map [type1 type2] merge-fn))
+
+
+
      
 ;; Convenience function
 (defn merge-types [& types]

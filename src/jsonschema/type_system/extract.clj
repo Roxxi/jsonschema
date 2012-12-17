@@ -1,15 +1,16 @@
 (ns jsonschema.type-system.extract
-  (:use jsonschema.utils
+  (:use roxxi.utils.collections
         jsonschema.type-system.types
         clojure.set))
 
-;; # General Concepts for deriving types from structures.
+;; # General Concepts for deriving types from structures
 (defprotocol TypePredicator
     "For some sort of representaiton of a document (e.g. JSON, Avro, BSON, XML, AnalyticaUniverse)
      provides answers for the following predicates"
     (null? [this x] "true iff x is explicitly null")
     (bool? [this x] "true iff x is a boolean")
-    (num? [this x] "true iff x is a number")
+    (int? [this x] "true iff x is an integer")
+    (real? [this x] "true iff x is a decimal")
     (str? [this x] "true iff x is a string")
     (document? [this x] "true iff x is a document")
     (collection? [this x] "true iff x is a collection")
@@ -20,16 +21,37 @@
   (extract [extractor x] "Returns a type for this object using the make-<type> functions above"))
 
 
+;; # Special Datatypes
+;; The whole notion here is we want to prove out we can do things
+;; like handle mongo's date and id representations
+
+(defn special-date? [x]
+  (and (clojure.core/string? x)
+       (.startsWith (clojure.string/lower-case x) "date(")
+       (.endsWith x ")")))
+
+(defn special-id? [x]
+  (and (clojure.core/string? x)
+       (.startsWith (clojure.string/lower-case x) "id(")
+       (.endsWith x ")")))
+
+(defn make-special [x]
+  (cond
+   (special-date? x) (make-scalar :date),
+   (special-id? x) (make-scalar :id)))
+
+
 ;; # Implementation for Examples.
 (deftype ClojureTypePredicator []
   TypePredicator
   (special? [this x] (or (special-date? x) (special-id? x)))
   (null? [this x] (nil? x))
   (bool? [this x] (or (true? x) (false? x)))
-  (num? [this x] (number? x))
+  (int? [this x] (and (number? x) (integer? x)))
+  (real? [this x] (and (number? x) (not (integer? x))))
   (str? [this x] (and (string? x) (not (special? this x))))
   (document? [this x] (map? x))
-  (collection? [this x] (or (vector? x) (list? x))))    
+  (collection? [this x] (or (vector? x) (list? x))))
   
 (deftype ClojureTypeExtractor 
     [pred]
@@ -39,7 +61,8 @@
      (special? pred x) (make-special x),
      (null? pred x) (make-scalar :null),
      (bool? pred x) (make-scalar :bool),
-     (num? pred x) (make-scalar :number),
+     (int? pred x) (make-scalar :int),
+     (real? pred x) (make-scalar :real),
      (str? pred x) (make-scalar :string),
      (document? pred x)(make-document (project-map x :value-xform #(extract extractor %))),
      (collection? pred x) (make-collection (map #(extract extractor %) x))

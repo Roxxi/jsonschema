@@ -1,9 +1,14 @@
 (ns jsonschema.parser
-  (:use jsonschema.utils        
+  (:use roxxi.utils.collections
         cheshire.core))
 
 
 (def line-number (atom 0))
+(def failed-lines (atom []))
+(defn clean-up! []
+  (swap! line-number (fn [foo] 0))
+  (swap! failed-lines (fn [foo] [])))
+
 (def failed-lines (atom []))
 (defn parse-string-with-notify [line]
   (swap! line-number inc)
@@ -32,10 +37,15 @@
 (defn- map-ish? [str-val]
   (first-and-last-char-are str-val \{ \}))
 
-(defn- snuff-escapes [string]
-  ;; this replaces more than 1 \ with 1 \
-  ;; odd looking, I know...
-  (clojure.string/replace string #"\\" ""))
+(defn- unescape-one-level [string]
+  ;; Previous
+  ;; The idea here is simple in essence, but incredibly damn annoying...
+  ;; Each level of escaping has an extra \. So we want to remove one \ for every
+  ;; set of \'s we find.
+  (clojure.string/replace string #"(\\+)\"" #(str (apply str (drop-last 1 (%1 1))) "\"")))
+
+
+  
 
 (defn- parsed-if-parsed [val]
   (when (not (string? val))
@@ -43,8 +53,8 @@
 
 (defn- number-if-number [val]
   (and (string? val)
-       (cond (re-matches #"^\d+$" val) (Integer. val)
-             (re-matches #"^\d+\.\d+$" val) (Double. val))))
+       (cond (re-matches #"^-?\d+$" val) (Integer. val)
+             (re-matches #"^-?\d+\.\d+$" val) (Double. val))))
              
 
 (declare jsonify)
@@ -52,7 +62,7 @@
 (defn- array-if-array [val]
   (when (and (string? val) (array-ish? val))
     (try
-      (vec (map jsonify (parse-string (snuff-escapes val))))
+      (vec (map jsonify (parse-string (unescape-one-level val))))
       (catch com.fasterxml.jackson.core.JsonParseException e
         ;; (log-warn here) maybe? optionally?
         nil))))
@@ -60,7 +70,7 @@
 (defn- map-if-map [val]
   (when (and (string? val) (map-ish? val))
     (try
-      (let [base-json (parse-string (snuff-escapes val))]
+      (let [base-json (parse-string (unescape-one-level val))]
         (project-map base-json :value-xform jsonify))
       (catch com.fasterxml.jackson.core.JsonParseException e
         ;; (log-warn here) maybe? optionally?
