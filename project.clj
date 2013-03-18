@@ -1,5 +1,5 @@
 
-(defproject roxxi/jsonschema "0.1.4"
+(defproject roxxi/jsonschema "0.1.5"
   :description "Library to help you derive schemas from arbirary collections of JSON"
   :license {:name "GNU General Public License Version 3"
             :url "http://www.gnu.org/licenses/gpl-3.0.html"}

@@ -32,7 +32,9 @@
         ;; key and the nth+1 element is a type
         (flatten
          (seq (project-map (:map type)
-                           :value-xform rewrite-type)))]
+                           ;; need to unbox the type field form
+                           ;; the avro spec
+                           :value-xform #(:type (rewrite-type %)))))]
   (apply avro-record (cons (gensym) field-decls))))
 
 (defmethod rewrite-type :union [type]
