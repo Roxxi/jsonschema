@@ -53,7 +53,7 @@
 
 (defn- number-if-number [val]
   (and (string? val)
-       (cond (re-matches #"^-?\d+$" val) (Integer. val)
+       (cond (re-matches #"^-?\d+$" val) (Long. val)
              (re-matches #"^-?\d+\.\d+$" val) (Double. val))))
              
 

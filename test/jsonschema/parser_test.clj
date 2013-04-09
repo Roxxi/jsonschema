@@ -12,4 +12,8 @@
                       "level2_1" 18824,
                       "level2_2" 906463}}))))
 
+(deftest test-big-integer []
+  (is (= (parse-json-string "{\"a\" : \"123456789012345\"}")
+         {"a" 123456789012345})))
+
 
