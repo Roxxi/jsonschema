@@ -1,5 +1,6 @@
 (ns jsonschema.parser
-  (:use roxxi.utils.collections
+  (:use roxxi.utils.print
+        roxxi.utils.collections
         cheshire.core))
 
 
@@ -59,25 +60,48 @@
 
 (declare jsonify)
 
+(defn possibly-inner-escaped-data? [string]
+  ;; This seems like a strange condition...
+  ;; but what we're saying is "if there are 2 or more backslashes
+  ;; in a row in this string, we probably need to peel
+  ;; things back one level before we try to parse the string
+  ;; otherwise, we can just try parsing it.
+  ;;
+  ;; If there is only one backslash, it's probably escaping
+  ;; some quotes that are inside- but if there is more than one,
+  ;; that means we probably have additional data inside
+  ;; that's further escaped.
+  (re-find #"\\{2,}" string))
+  
+
 (defn- array-if-array [val]
   (when (and (string? val) (array-ish? val))
-    (try
-      (vec (map jsonify (parse-string (unescape-one-level val))))
-      (catch com.fasterxml.jackson.core.JsonParseException e
-        ;; (log-warn here) maybe? optionally?
-        nil))))
+    (if (possibly-inner-escaped-data? val)
+      (try
+        (vec (map jsonify (parse-string (unescape-one-level val))))
+        (catch com.fasterxml.jackson.core.JsonParseException e
+          ;; (log-warn here) maybe? optionally?
+          nil))
+      (try
+        (vec (map jsonify (parse-string val)))
+        (catch com.fasterxml.jackson.core.JsonParseException e
+          ;; (log-warn here) maybe? optionally?
+          nil)))))
   
 (defn- map-if-map [val]
   (when (and (string? val) (map-ish? val))
-    (try
-      (let [base-json (parse-string val)]
-        (project-map base-json :value-xform jsonify))
-      (catch com.fasterxml.jackson.core.JsonParseException e
-        (try
-          (let [base-json (parse-string (unescape-one-level val))]
-            (project-map base-json :value-xform jsonify))
+    (if (possibly-inner-escaped-data? val)
+      (try
+        (let [base-json (parse-string (unescape-one-level val))]
+          (project-map base-json :value-xform jsonify))
           (catch com.fasterxml.jackson.core.JsonParseException e
-            nil))))))
+            nil))
+      (try
+        (let [base-json (parse-string val)]
+          (project-map base-json :value-xform jsonify))        
+        (catch com.fasterxml.jackson.core.JsonParseException e
+          ;; (log-warn here) maybe? optionally?
+          nil)))))
 
 (defn- jsonify [val]
   (or (map-if-map val)
