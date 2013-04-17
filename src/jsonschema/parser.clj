@@ -70,11 +70,14 @@
 (defn- map-if-map [val]
   (when (and (string? val) (map-ish? val))
     (try
-      (let [base-json (parse-string (unescape-one-level val))]
+      (let [base-json (parse-string val)]
         (project-map base-json :value-xform jsonify))
       (catch com.fasterxml.jackson.core.JsonParseException e
-        ;; (log-warn here) maybe? optionally?
-        nil))))
+        (try
+          (let [base-json (parse-string (unescape-one-level val))]
+            (project-map base-json :value-xform jsonify))
+          (catch com.fasterxml.jackson.core.JsonParseException e
+            nil))))))
 
 (defn- jsonify [val]
   (or (map-if-map val)
