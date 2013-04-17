@@ -71,7 +71,8 @@
   ;; some quotes that are inside- but if there is more than one,
   ;; that means we probably have additional data inside
   ;; that's further escaped.
-  (re-find #"\\{2,}" string))
+  (or (re-find #"\\{2,}" string)
+      (re-find #"\\+\"" string)))
   
 
 (defn- array-if-array [val]
@@ -80,8 +81,11 @@
       (try
         (vec (map jsonify (parse-string (unescape-one-level val))))
         (catch com.fasterxml.jackson.core.JsonParseException e
-          ;; (log-warn here) maybe? optionally?
-          nil))
+          (try
+            (vec (map jsonify (parse-string val)))
+            (catch com.fasterxml.jackson.core.JsonParseException e
+              ;; (log-warn here) maybe? optionally?
+              nil))))
       (try
         (vec (map jsonify (parse-string val)))
         (catch com.fasterxml.jackson.core.JsonParseException e
@@ -95,7 +99,12 @@
         (let [base-json (parse-string (unescape-one-level val))]
           (project-map base-json :value-xform jsonify))
           (catch com.fasterxml.jackson.core.JsonParseException e
-            nil))
+            (try
+              (let [base-json (parse-string val)]
+                (project-map base-json :value-xform jsonify))        
+              (catch com.fasterxml.jackson.core.JsonParseException e
+                ;; (log-warn here) maybe? optionally?
+                nil))))
       (try
         (let [base-json (parse-string val)]
           (project-map base-json :value-xform jsonify))        
