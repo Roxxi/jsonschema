@@ -54,8 +54,10 @@
 
 (defn- number-if-number [val]
   (and (string? val)
-       (cond (re-matches #"^-?\d+$" val) (Long. val)
-             (re-matches #"^-?\d+\.\d+$" val) (Double. val))))
+       (let [attempt (read-string val)]
+         (and (number? attempt)
+              attempt))))
+           
              
 
 (declare jsonify)
