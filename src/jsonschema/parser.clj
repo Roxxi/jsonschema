@@ -52,8 +52,11 @@
   (when (not (string? val))
     val))
 
+
 (defn- number-if-number [val]
   (and (string? val)
+       (or (re-matches #"^-?\d+$" val)
+           (re-matches #"^-?\d+\.\d+$" val))
        (let [attempt (read-string val)]
          (and (number? attempt)
               attempt))))
