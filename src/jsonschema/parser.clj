@@ -55,8 +55,8 @@
 
 (defn- number-if-number [val]
   (and (string? val)
-       (or (re-matches #"^-?\d+$" val)
-           (re-matches #"^-?\d+\.\d+$" val))
+       (or (re-matches #"^-?[1-9]\d*$" val)
+           (re-matches #"^-?[1-9]\d*\.\d+$" val))
        (let [attempt (read-string val)]
          (and (number? attempt)
               attempt))))
