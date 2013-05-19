@@ -32,7 +32,8 @@
            true 1
            false 0
            5 5
-           5.5 5
+           5.5 6
+           5.4 5
            "hello!" nil)
 
 (type-test :real

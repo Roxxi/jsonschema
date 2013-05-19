@@ -53,12 +53,19 @@
     val))
 
 
+;; max 64 bit signed number:
+;; 9,223,372,036,854,775,807 ~ 19 digits
+;; Clojure can support bigger integers than this
+;; but, let's assume that this might be used
+;; by non-clojure code, and that there's a 64 bit max.
 (defn- number-if-number [val]
   (and (string? val)
        (or (re-matches #"^-?[1-9]\d*$" val)
            (re-matches #"^-?[1-9]\d*\.\d+$" val))
        (let [attempt (read-string val)]
          (and (number? attempt)
+              (or (instance? Long attempt)
+                  (instance? Double attempt))
               attempt))))
            
              

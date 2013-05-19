@@ -19,13 +19,15 @@
                       "level2_1" 0,
                       "level2_2" [{"level2_i0_p0_key" 1, "level2_i1_p0_key" 1}]}}))))
 
-(deftest test-big-integer []
-  (is (= (parse-json-string "{\"a\" : \"123456789012345\"}")
-         {"a" 123456789012345})))
+(deftest test-max-integer []
+  (is (= (parse-json-string "{\"a\" : \"9223372036854775807\"}")
+         {"a" 9223372036854775807})))
 
+;; We don't want numbers to tip over the 64-bit threshold for longs.
+;; If a number is that big, we'll just assume it's a string.
 (deftest test-really-huge-integer []
   (is (= (parse-json-string "{\"a\" : \"89844588526466531663538850397115\"}")
-         {"a" 89844588526466531663538850397115N})))
+         {"a" "89844588526466531663538850397115"})))
 
 (deftest test-really-huge-decimal []
   (is (= (parse-json-string "{\"a\" : \"89844588526466531663538850397115.8984458852646650397115\"}")

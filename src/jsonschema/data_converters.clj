@@ -3,7 +3,8 @@
 to scalar data of another type"
   (:use roxxi.utils.print
         roxxi.utils.collections
-        jsonschema.type-system.types))
+        jsonschema.type-system.types)
+  (:require [clojure.math.numeric-tower :as num-tower]))
 
 (defn- ->null [datum]  
   nil)
@@ -16,9 +17,14 @@ to scalar data of another type"
         datum true
         :else false))
 
-(defn- ->int [datum]
+
+(defn- ->integer
+  "This returns a mathematical integer, not necessarily and integer 'type'"
+  [datum]
   (cond
-   (number? datum) (int datum)
+   ;; There are contexts where statistical rounding might be more approriate.
+   ;; But for now, we'll go with the poor-man's approach.
+   (number? datum) (num-tower/round datum)       
    (boolean? datum) (if (->bool datum) 1 0)
    :else (->null datum)))
 
@@ -34,7 +40,7 @@ to scalar data of another type"
 (def type-desc=>converter
   {:null   ->null
    :bool   ->bool
-   :int    ->int
+   :int    ->integer
    :real   ->real
    :string ->str
    :date   ->str
