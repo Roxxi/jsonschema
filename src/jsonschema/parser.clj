@@ -1,7 +1,9 @@
 (ns jsonschema.parser
-  (:use roxxi.utils.print
-        roxxi.utils.collections
-        cheshire.core))
+  {:author "Alex Bahouth"
+   :date "December 2012"}
+  (:require [roxxi.utils.print :refer :all]
+            [roxxi.utils.collections :refer :all])
+  (:require [cheshire.core :refer [parse-string]]))
 
 
 (def line-number (atom 0))
@@ -23,9 +25,8 @@
       (swap! failed-lines #(conj @failed-lines %))
       (println
        (str "Line #: " @line-number ", " (.getMessage e) "\n"
-            line "\n---------"))
-      )))
-       
+            line "\n---------")))))
+
 
 (defn- first-and-last-char-are [str-val first-c last-c]
   (and
@@ -46,7 +47,7 @@
   (clojure.string/replace string #"(\\+)\"" #(str (apply str (drop-last 1 (%1 1))) "\"")))
 
 
-  
+
 
 (defn- parsed-if-parsed [val]
   (when (not (string? val))
@@ -67,8 +68,8 @@
               (or (instance? Long attempt)
                   (instance? Double attempt))
               attempt))))
-           
-             
+
+
 
 (declare jsonify)
 
@@ -85,7 +86,7 @@
   ;; that's further escaped.
   (or (re-find #"\\{2,}" string)
       (re-find #"\\+\"" string)))
-  
+
 
 (defn- array-if-array [val]
   (when (and (string? val) (array-ish? val))
@@ -103,7 +104,7 @@
         (catch com.fasterxml.jackson.core.JsonParseException e
           ;; (log-warn here) maybe? optionally?
           nil)))))
-  
+
 (defn- map-if-map [val]
   (when (and (string? val) (map-ish? val))
     (if (possibly-inner-escaped-data? val)
@@ -113,13 +114,13 @@
           (catch com.fasterxml.jackson.core.JsonParseException e
             (try
               (let [base-json (parse-string val)]
-                (project-map base-json :value-xform jsonify))        
+                (project-map base-json :value-xform jsonify))
               (catch com.fasterxml.jackson.core.JsonParseException e
                 ;; (log-warn here) maybe? optionally?
                 nil))))
       (try
         (let [base-json (parse-string val)]
-          (project-map base-json :value-xform jsonify))        
+          (project-map base-json :value-xform jsonify))
         (catch com.fasterxml.jackson.core.JsonParseException e
           ;; (log-warn here) maybe? optionally?
           nil)))))
@@ -135,8 +136,7 @@
 (defn parse-json-string [json-string
                           & {:keys [string-transform]
                              :or {string-transform identity}}]
-  (project-map (parse-string-with-notify
-                 (string-transform json-string))
+  (project-map (parse-string-with-notify (string-transform json-string))
                :value-xform jsonify))
 
 (defn parse-json-strings [json-strings
