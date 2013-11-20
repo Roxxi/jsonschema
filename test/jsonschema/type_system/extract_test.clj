@@ -84,6 +84,15 @@
                           {:a [1 2 3]
                            :b "not-a-collection"}]})
     (p-is document? {:name "less-scalars" :a "simple" :b nil :c 25 :d true})
+    (p-is-not collection? nil)
+    (p-is-not collection? 5)
+    (p-is-not collection? "5")
+    (p-is-not collection? "a string")
+    (p-is-not collection? 5.0)
+    (p-is-not collection? {})
+    (p-is-not collection? {:a :map :that :is :not :empty})
+    (p-is-not collection? {[] :a :b []})
+    (p-is-not collection? {[] []})
     (p-is collection? [])
     (p-is collection? [nil true "Hello" 6 "date(someday)" "id(something)"])
     (p-is collection? [1 2 3])
@@ -121,14 +130,14 @@
    :c {:a 5, :c "date(1234)", :b [1 2 "a" 12 "b"], :d [1 2 3]},
    :b [1 2 "a" 12 "b"],
    :d [{:a 5, :c "date(1234)", :b [1 2 "a" 12 "b"], :d [1 2 3]} 10 "a"]})
-  
+
 
 (def complex-doc-type
   #jsonschema.type_system.types.Document{:properties ["a" "b" "c" "d"], :map {"a" #jsonschema.type_system.types.Scalar{:type :int}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}, "c" #jsonschema.type_system.types.Document{:properties ["a" "b" "c" "d"], :map {"a" #jsonschema.type_system.types.Scalar{:type :int}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}, "c" #jsonschema.type_system.types.Scalar{:type :date}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :int}}}}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Document{:properties ["a" "b" "c" "d"], :map {"a" #jsonschema.type_system.types.Scalar{:type :int}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}, "c" #jsonschema.type_system.types.Scalar{:type :date}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :int}}}} #jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}}})
 
 (def complex-doc-keys-type
   #jsonschema.type_system.types.Document{:properties [:a :c :b :d], :map {:a #jsonschema.type_system.types.Scalar{:type :int}, :c #jsonschema.type_system.types.Document{:properties [:a :c :b :d], :map {:a #jsonschema.type_system.types.Scalar{:type :int}, :c #jsonschema.type_system.types.Scalar{:type :date}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :int}}}}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Document{:properties [:a :c :b :d], :map {:a #jsonschema.type_system.types.Scalar{:type :int}, :c #jsonschema.type_system.types.Scalar{:type :date}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :int}}}} #jsonschema.type_system.types.Scalar{:type :string}}}}}})
-  
+
 ;; TODO add tests here for all the type tests above
 (deftest clojure-extractor-test
   (testing "Testing the ClojureTypeExtractor"
@@ -156,14 +165,14 @@
                                                                              #jsonschema.type_system.types.Scalar{:type :string}}}})
     (t-is complex-doc complex-doc-type)
     (t-is complex-doc-keys complex-doc-keys-type)))
-    
+
 
 
 (deftest types-4-tweets
   (testing
       "Generating types for tweets in tweets.js
        This isn't really a test. It's for documentation"
-    (let [result 
+    (let [result
           (let [parsed-js (parse-string (slurp "test/jsonschema/type_system/tweets.js"))
                 extractor (clojure-type-extractor)]
             (map #(extract extractor %) parsed-js))]
