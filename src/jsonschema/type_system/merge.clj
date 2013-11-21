@@ -225,3 +225,4 @@
 (defn init-unions []
   (def u1 (extract-type [1 "a"]))
   (def u2 (extract-type [2 "ab"])))
+;; (merge-two-homo-mergeable-things u1 u2)

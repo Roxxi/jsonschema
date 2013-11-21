@@ -187,7 +187,12 @@
 (defn incongruent? [d1 d2]
   (not (congruent? d1 d2)))
 
-
+;; There are two outcomes when you try to merge types:
+;;   1) The merge result has the same type as one or both input types, possibly with different metadata
+;;   2) The merge result has a different type than both input types.
+;; Two things are homo-mergeable if merging them looks like case 1.
+;; Otherwise, they are not homo-mergeable, and merging them will result in a Union type.
+;;
 ;; need to independently write merge-same-type fxns from
 ;; merge-diff-type fxns
 (defn homo-mergeable? [t1 t2]
@@ -213,7 +218,7 @@
            u2 (:union-of t2)]
        (and (= (count u1) (count u2))
             (every? true? (map (fn [union-element]
-                                 (some (map #(homo-mergeable? union-element %) u2)))
+                                 (some true? (map #(homo-mergeable? union-element %) u2)))
                                u1))))
      ;;recurse
 
@@ -256,37 +261,59 @@
 
 
 
+(defn make-document [property-type-map]
+  (Document. (set (keys property-type-map))
+             property-type-map))
 
 
 
 
-(defn- get-scalars-to-be-merged [coll scalar]
-  (filter #(= (getType %) (getType scalar))
-          coll))
+;; Assumes homo-mergeability is transitive, WHICH IT IS.
+;;
+;; if input is [a1 a2 b1 c1 a3 c2]
+;; then output is [merged(a1 a2 a3) b1 merged(c1 c2)]
+(defn reduce-homo-mergeable-things [types]
+  (reduce (fn [merged-types type]
+            ;; if something it's mergeable with something...
+            (if (some true? (map #(homo-mergeable? type %) merged-types))
+              ;; ... do the merge
+              (map (fn [merged-type]
+                     (if (homo-mergeable? merged-type type)
+                       (merge-two-homo-mergeable-things merged-type type)
+                       merged-type))
+                   merged-types)
+              ;; ... otherwise insert it
+              (conj merged-types type)))
+          []
+          types))
 
-(defn- scalar-type-amalgamator
-  "Takes a collection of scalar types, and a new type, and upserts the type
-into the collection."
-  [coll type]
-  (let [matching-types (get-scalars-to-be-merged coll type)
-        matching-type (first matching-types)]
-    (when (> (count matching-types) 1)
-      "problem")
-    (if (nil? matching-type)
-      (conj coll type)
-      (replace {matching-type (merge-same-typed-scalars matching-type type)}
-               coll))))
+(defn- one? [a-seq]
+  (= (count a-seq) 1))
 
-(defn- dedup-scalar-types-by-merging [scalar-types]
-  (reduce scalar-type-amalgamator #{} scalar-types))
+(defn make-collection
+  "If a collection contains no types, there will be no types. As such, this
+will be a collection of :nothing"
+  [types]
+  (Collection. (if (empty? types)
+                 :nothing
+                 (let [unique-types (reduce-homo-mergeable-things types)]
+                   (if (one? unique-types)
+                     (first unique-types)
+                     (make-union unique-types))))))
 
-;;TODO
+(defn make-collection-with [& types]
+  (make-collection types))
+
+
+
+
+
+
 (defn make-union [types]
-  (let [scalar-types (set (filter scalar-type? types))
-        deduped-scalar-types (dedup-scalar-types-by-merging scalar-types)
-        non-scalar-types (set (remove scalar-type? types))]
-    (Union. (union deduped-scalar-types
-                   non-scalar-types))))
+  (let [unique-types (reduce-homo-mergeable-things types)]
+    (if (one? unique-types)
+      (first unique-types)
+      (Union. unique-types))))
 
 (defn make-union-with
   [& types]
@@ -305,32 +332,6 @@ into the collection."
 
 
 
-
-(defn- one? [a-seq]
-  (= (count a-seq) 1))
-
-;;TODO
-(defn make-collection
-  "If a collection contains no types, there
-   will be no types. As such, this will be a collection
-   of :nothing"
-  [types]
-  (Collection. (if (empty? types)
-                 :nothing
-                 (let [unique-types (set types)]
-                   (if (one? unique-types)
-                     (first unique-types)
-                     (make-union unique-types))))))
-
-(defn make-collection-with [& types]
-  (make-collection types))
-
-
-
-;;TODO
-(defn make-document [property-type-map]
-  (Document. (set (keys property-type-map))
-             property-type-map))
 
 ;; # Helpers
 
