@@ -1,6 +1,8 @@
 (ns jsonschema.type-system.types
-  (:use roxxi.utils.collections
-        roxxi.utils.common))
+  (:require [clojure.set :refer [union]]
+            [roxxi.utils.common :refer [def-]]
+            [roxxi.utils.collections :refer [project-map]]
+            [roxxi.utils.print :refer [print-expr]]))
 
 
 ;; # Type Primitives
@@ -33,21 +35,21 @@
   Typeable
   (getType [this] :collection))
 
-(defrecord Int [val min max]
+(defrecord Int [min max]
   Typeable
   (getType [this] :int)
   Ranged
   (getMin [this] min)
   (getMax [this] max))
 
-(defrecord Real [val min max]
+(defrecord Real [min max]
   Typeable
   (getType [this] :real)
   Ranged
   (getMin [this] min)
   (getMax [this] max))
 
-(defrecord Str [val min max]
+(defrecord Str [min max]
   Typeable
   (getType [this] :str)
   Ranged
@@ -58,77 +60,15 @@
   Typeable
   (getType [this] :null))
 
-(defrecord Bool [val]
+(defrecord Bool []
   Typeable
   (getType [this] :bool))
 
-(defrecord Date [val format]
+(defrecord Date [format]
   Typeable
   (getType [this] :date)
   Formatted
   (getFormat [this] format))
-
-;; ## Factory methods
-
-(defn make-int [val]
-  (Int. val val val))
-
-(defn make-real [val]
-  (Int. val val val))
-
-(defn make-string [val]
-  (let [len (count val)]
-    (Int. val len len)))
-
-(defn make-null []
-  (Null. ))
-
-(defn make-bool [val]
-  (Bool. val))
-
-(defn make-date [val format]
-  (Date. val format))
-
-
-
-(defn make-union-with
-  [& types]
-  (Union. (apply set-over types)))
-
-(defn make-union [types]
-  (Union. types))
-
-(defn maybe-make-union [types]
-  (cond
-    (empty? types) nil
-    (= (count types) 1) (first types)
-    (= (count (hash-set types)) 1) (first types)
-    :else (make-union types)))
-
-(defn maybe-make-union-with [& types]
-  (maybe-make-union types))
-
-(defn make-document [property-type-map]
-  (Document. (vec (keys property-type-map))
-             property-type-map))
-
-(defn- one? [a-seq]
-  (= (count a-seq) 1))
-
-(defn make-collection
-  "If a collection contains no types, there
-   will be no types. As such, this will be a collection
-   :of :nothing"
-  [types]
-  (Collection. (if (empty? types)
-                 :nothing
-                 (let [unique-types (apply set-over types)]
-                   (if (one? unique-types)
-                     (first unique-types)
-                     (make-union unique-types))))))
-
-(defn make-collection-with [& types]
-  (make-collection types))
 
 ;; # Predicates
 
@@ -150,6 +90,7 @@
 (def- scalar-type-registry
   #{:null :bool :int :real :str :date})
 
+;; `scalar` is a virtual type.
 (defn scalar-type?
   ([x] (scalar-type? scalar-type-registry x))
   ([registry x]
@@ -169,6 +110,227 @@
   (and (satisfies? Typeable x)
        (= (getType x) :collection)))
 
+;; ## Factory methods
+
+(defn make-int
+  ([val] (Int. val val))
+  ([min max] (Int. min max)))
+
+(defn make-real
+  ([val] (Real. val val))
+  ([min max] (Real. min max)))
+
+(defn make-str
+  ([val] (let [len (count val)]
+           (Str. len len)))
+  ([min max] (Str. min max)))
+
+(defn make-null []
+  (Null. ))
+
+(defn make-bool []
+  (Bool. ))
+
+(defn make-date [format]
+  (Date. format))
+
+
+
+
+(defn- merge-ranged-scalars [s1 s2 type]
+  (let [min-val (min (getMin s1) (getMin s2))
+        max-val (max (getMax s1) (getMax s2))
+        known-types #{:int :real :str}]
+    (if (contains? known-types type)
+      (cond
+       (= type :int) (make-int min-val max-val)
+       (= type :real) (make-real min-val max-val)
+       (= type :str) (make-str min-val max-val))
+      (throw
+       (RuntimeException.
+        (str "Do not know how to merge-ranged-scalars of type " type
+             "; only know " known-types))))))
+
+;; TODO what does it mean to merge the formats?
+(defn- merge-formatted-scalars [s1 s2 type]
+  (let [known-types #{:date}]
+    (if (contains? known-types type)
+      s1
+      (throw
+       (RuntimeException.
+        (str ("Do not know how to merge-formatted-scalars of type " type
+              "; only know " known-types)))))))
+
+(defn merge-same-typed-scalars [s1 s2]
+  (let [type (getType s1)]
+    (condp = type
+      :int (merge-ranged-scalars s1 s2 type)
+      :real (merge-ranged-scalars s1 s2 type)
+      :str (merge-ranged-scalars s1 s2 type)
+      :bool s1
+      :null s1
+      :date (merge-formatted-scalars s1 s2 type))))
+
+
+
+
+
+
+
+
+(defn same-type? [s1 s2]
+  (= (getType s1) (getType s2)))
+
+(defn congruent? [d1 d2]
+  (= (:properties d1) (:properties d2)))
+
+(defn incongruent? [d1 d2]
+  (not (congruent? d1 d2)))
+
+
+;; need to independently write merge-same-type fxns from
+;; merge-diff-type fxns
+(defn homo-mergeable? [t1 t2]
+  (if (same-type? t1 t2)
+    (cond
+     (scalar-type? t1)
+     (= (getType t1) (getType t2))
+
+     (document-type? t1)
+     (let [map1 (print-expr (:map t1))
+           map2 (print-expr (:map t2))]
+       (and (congruent? t1 t2)
+            (every? true? (map (fn [[k v1]]
+                                 (homo-mergeable? v1 (map2 k)))
+                               map1))));;recurse
+
+     (collection-type? t1)
+     (homo-mergeable? (:coll-of t1) (:coll-of t2))
+     ;;recurse
+
+     (union-type? t1)
+     (let [u1 (:union-of t1)
+           u2 (:union-of t2)]
+       (and (= (count u1) (count u2))
+            (every? true? (map (fn [union-element]
+                                 (some (map #(homo-mergeable? union-element %) u2)))
+                               u1))))
+     ;;recurse
+
+     :else (throw (RuntimeException. (str "Don't know how to merge these two objects: " t1 t2))))
+    false))
+
+
+(defn- build-map-from-pairs [seq-of-pairs]
+  (into {} seq-of-pairs))
+
+(defn merge-two-homo-mergeable-things [t1 t2]
+  (cond
+   (scalar-type? t1)
+   (merge-same-typed-scalars t1 t2)
+
+   (document-type? t1)
+   (make-document
+    (build-map-from-pairs
+     (map (fn [[k v1]]
+            (let [v2 (get (:map t2) k)
+                  merged-v (merge-two-homo-mergeable-things v1 v2)]
+              [k merged-v]))
+          (:map t1))))
+
+   (collection-type? t1)
+   (make-collection (merge-two-homo-mergeable-things (:coll-of t1) (:coll-of t2)))
+
+   (union-type? t1)
+   (let [u1 (:union-of t1)
+         u2 (:union-of t2)]
+     (make-union
+      (map (fn [union-element]
+             (merge-two-homo-mergeable-things
+              union-element
+              (first (filter #(homo-mergeable? union-element %) u2))))
+           u1)))
+
+   :else "barf"))
+
+
+
+
+
+
+
+
+(defn- get-scalars-to-be-merged [coll scalar]
+  (filter #(= (getType %) (getType scalar))
+          coll))
+
+(defn- scalar-type-amalgamator
+  "Takes a collection of scalar types, and a new type, and upserts the type
+into the collection."
+  [coll type]
+  (let [matching-types (get-scalars-to-be-merged coll type)
+        matching-type (first matching-types)]
+    (when (> (count matching-types) 1)
+      "problem")
+    (if (nil? matching-type)
+      (conj coll type)
+      (replace {matching-type (merge-same-typed-scalars matching-type type)}
+               coll))))
+
+(defn- dedup-scalar-types-by-merging [scalar-types]
+  (reduce scalar-type-amalgamator #{} scalar-types))
+
+;;TODO
+(defn make-union [types]
+  (let [scalar-types (set (filter scalar-type? types))
+        deduped-scalar-types (dedup-scalar-types-by-merging scalar-types)
+        non-scalar-types (set (remove scalar-type? types))]
+    (Union. (union deduped-scalar-types
+                   non-scalar-types))))
+
+(defn make-union-with
+  [& types]
+  (make-union (set types)))
+
+(defn maybe-make-union [types]
+  (cond
+    (empty? types) nil
+    (= (count types) 1) (first types)
+    (= (count (set types)) 1) (first types)
+    :else (make-union types)))
+
+(defn maybe-make-union-with [& types]
+  (maybe-make-union types))
+
+
+
+
+
+(defn- one? [a-seq]
+  (= (count a-seq) 1))
+
+;;TODO
+(defn make-collection
+  "If a collection contains no types, there
+   will be no types. As such, this will be a collection
+   of :nothing"
+  [types]
+  (Collection. (if (empty? types)
+                 :nothing
+                 (let [unique-types (set types)]
+                   (if (one? unique-types)
+                     (first unique-types)
+                     (make-union unique-types))))))
+
+(defn make-collection-with [& types]
+  (make-collection types))
+
+
+
+;;TODO
+(defn make-document [property-type-map]
+  (Document. (set (keys property-type-map))
+             property-type-map))
 
 ;; # Helpers
 
