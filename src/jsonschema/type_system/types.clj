@@ -199,66 +199,113 @@
 ;;
 ;; need to independently write merge-same-type fxns from
 ;; merge-diff-type fxns
-(defn homo-mergeable? [t1 t2]
-  (if (same-type? t1 t2)
-    (cond
-     (scalar-type? t1)
-     (= (getType t1) (getType t2))
+(defn type-dispatcher [t1 t2]
+  (cond
+   (or (union-type? t1) (union-type? t2))
+   :union
+   (and (scalar-type? t1) (scalar-type? t2))
+   :scalar
+   (and (document-type? t1) (document-type? t2))
+   :document
+   (and (collection-type? t1) (collection-type? t2))
+   :collection
+   (and (satisfies? Typeable t1) (satisfies? Typeable t2))
+   :non-mergeable-types
+   :else
+   :default))
+(defmulti homo-mergeable? type-dispatcher)
 
-     (document-type? t1)
-     (and (congruent? t1 t2)
-          (every? true? (map
-                         (fn [[k v1]] (homo-mergeable? v1 (get (:map t2) k)))
-                         (:map t1))))
+(defmethod homo-mergeable? :scalar [t1 t2]
+  (= (getType t1) (getType t2)))
 
-     (collection-type? t1)
-     (homo-mergeable? (:coll-of t1) (:coll-of t2))
+(defmethod homo-mergeable? :document [t1 t2]
+  (and (congruent? t1 t2)
+       (every? true? (map
+                      (fn [[k v1]] (homo-mergeable? v1 (get (:map t2) k)))
+                      (:map t1)))))
 
-     (union-type? t1)
-     (let [u1 (:union-of t1)
-           u2 (:union-of t2)]
-       (and (= (count u1) (count u2))
-            (every? true? (map
-                           (fn [union-element]
-                             (some true? (map
-                                          #(homo-mergeable? union-element %)
-                                          u2)))
-                           u1))))
+(defmethod homo-mergeable? :collection [t1 t2]
+  (homo-mergeable? (:coll-of t1) (:coll-of t2)))
 
-     :else (throw (RuntimeException. (str "Don't know how to merge these two objects: " t1 t2))))
-    false))
+
+(defn- both-unions? [t1 t2]
+  (and (same-type? t1 t2)
+       (= (getType t1) :union)))
+
+(defmethod homo-mergeable? :union [t1 t2]
+  (if (both-unions? t1 t2)
+    ;; if both unions, they should be homomergeable unions
+    (let [u1 (:union-of t1)
+          u2 (:union-of t2)]
+      (and (= (count u1) (count u2))
+           (every? true? (map
+                          (fn [union-element]
+                            (some true? (map
+                                         #(homo-mergeable? union-element %)
+                                         u2)))
+                          u1))))
+    ;; if only one is a union
+    (let [[the-union other] (if (union-type? t1) [t1 t2] [t2 t1])]
+      (some true? (map #(homo-mergeable? other %) (:union-of the-union))))))
+
+(defmethod homo-mergeable? :non-mergeable-types [t1 t2]
+  false)
+
+(defmethod homo-mergeable? :default [t1 t2]
+  (throw (RuntimeException.
+          (str "Don't know how to decide if these two objects "
+               "are homo-mergeable: " t1 t2))))
+
+;; (homo-mergeable? (make-union-with (make-str "foo") (make-int 3))
+;;                  (make-str "foobar"))
+;; true
+;; (homo-mergeable? (make-collection-with (make-int 4)) (make-int 4))
+;; false
+
+
+
 
 
 (defn- build-map-from-pairs [seq-of-pairs]
   (into {} seq-of-pairs))
 
-(defn merge-two-homo-mergeable-things [t1 t2]
-  (cond
-   (scalar-type? t1)
-   (merge-same-typed-scalars t1 t2)
-
-   (document-type? t1)
+(defmulti merge-two-homo-mergeable-things type-dispatcher)
+(defmethod merge-two-homo-mergeable-things :scalar [t1 t2]
+  (merge-same-typed-scalars t1 t2))
+(defmethod merge-two-homo-mergeable-things :document [t1 t2]
    (make-document
     (build-map-from-pairs
      (map (fn [[k v1]]
             (let [v2 (get (:map t2) k)
                   merged-v (merge-two-homo-mergeable-things v1 v2)]
               [k merged-v]))
-          (:map t1))))
+          (:map t1)))))
+(defmethod merge-two-homo-mergeable-things :collection [t1 t2]
+  (make-collection
+   (vec
+    (merge-two-homo-mergeable-things (:coll-of t1) (:coll-of t2)))))
+(defmethod merge-two-homo-mergeable-things :union [t1 t2]
+  (if (both-unions? t1 t2)
+    ;; if both are unions
+    (make-union
+     (map (fn [u1-elem]
+            (let [u2-elem (first
+                           (filter #(homo-mergeable? u1-elem %) (:union-of t2)))]
+              (merge-two-homo-mergeable-things u1-elem u2-elem)))
+          (:union-of t1)))
+    ;;if only one is a union
+    (let [[the-union other] (if (union-type? t1) [t1 t2] [t2 t1])]
+      (make-union
+       (map (fn [u1-elem]
+              (if (homo-mergeable? u1-elem other)
+                (merge-two-homo-mergeable-things u1-elem other)
+                u1-elem))
+            (:union-of t1))))))
 
-   (collection-type? t1)
-   (make-collection
-    [(merge-two-homo-mergeable-things (:coll-of t1) (:coll-of t2))])
-
-   (union-type? t1)
-   (make-union
-    (map (fn [u1-elem]
-           (let [u2-elem (first
-                          (filter #(homo-mergeable? u1-elem %) (:union-of t2)))]
-             (merge-two-homo-mergeable-things u1-elem u2-elem)))
-         (:union-of t1)))
-
-   :else "barf"))
+(defmethod merge-two-homo-mergeable-things :non-mergeable-types [t1 t2]
+  "barf")
+(defmethod merge-two-homo-mergeable-things :default [t1 t2]
+  "barf")
 
 
 
