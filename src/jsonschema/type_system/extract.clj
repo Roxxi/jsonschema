@@ -65,7 +65,8 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
      (int? pred x) (make-int x),
      (real? pred x) (make-real x),
      (str? pred x) (make-str x),
-     (document? pred x) (make-document (project-map x :value-xform #(extract extractor %))),
+     (document? pred x) (make-document
+                         (project-map x :value-xform #(extract extractor %))),
      (collection? pred x) (make-collection (map #(extract extractor %) x))
      :else (throw
             (RuntimeException.

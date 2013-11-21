@@ -217,8 +217,8 @@
 (defn init-colls []
   (def c1 (extract-type [1]))
   (def c2 (extract-type [1 2]))
-  (def c3 (extract-type [1 2 "a"]))
-  (def c4 (extract-type [1 2 "a" "asdf"])))
+  (def c3 (extract-type [1 "a"]))
+  (def c4 (extract-type [2 "asdf"])))
 ;; (homo-mergeable? c1 c2)
 ;; (homo-mergeable? c3 c4)
 

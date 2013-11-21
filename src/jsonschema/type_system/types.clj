@@ -179,7 +179,9 @@
 
 
 (defn same-type? [s1 s2]
-  (= (getType s1) (getType s2)))
+  (and (satisfies? Typeable s1)
+       (satisfies? Typeable s2)
+       (= (getType s1) (getType s2))))
 
 (defn congruent? [d1 d2]
   (= (:properties d1) (:properties d2)))
@@ -188,10 +190,12 @@
   (not (congruent? d1 d2)))
 
 ;; There are two outcomes when you try to merge types:
-;;   1) The merge result has the same type as one or both input types, possibly with different metadata
+;;   1) The merge result has the same type as one or both input types, possibly
+;;      with different metadata
 ;;   2) The merge result has a different type than both input types.
 ;; Two things are homo-mergeable if merging them looks like case 1.
-;; Otherwise, they are not homo-mergeable, and merging them will result in a Union type.
+;; Otherwise, they are not homo-mergeable, and merging them will result in a
+;; Union type.
 ;;
 ;; need to independently write merge-same-type fxns from
 ;; merge-diff-type fxns
@@ -202,25 +206,24 @@
      (= (getType t1) (getType t2))
 
      (document-type? t1)
-     (let [map1 (print-expr (:map t1))
-           map2 (print-expr (:map t2))]
-       (and (congruent? t1 t2)
-            (every? true? (map (fn [[k v1]]
-                                 (homo-mergeable? v1 (map2 k)))
-                               map1))));;recurse
+     (and (congruent? t1 t2)
+          (every? true? (map
+                         (fn [[k v1]] (homo-mergeable? v1 (get (:map t2) k)))
+                         (:map t1))))
 
      (collection-type? t1)
      (homo-mergeable? (:coll-of t1) (:coll-of t2))
-     ;;recurse
 
      (union-type? t1)
      (let [u1 (:union-of t1)
            u2 (:union-of t2)]
        (and (= (count u1) (count u2))
-            (every? true? (map (fn [union-element]
-                                 (some true? (map #(homo-mergeable? union-element %) u2)))
-                               u1))))
-     ;;recurse
+            (every? true? (map
+                           (fn [union-element]
+                             (some true? (map
+                                          #(homo-mergeable? union-element %)
+                                          u2)))
+                           u1))))
 
      :else (throw (RuntimeException. (str "Don't know how to merge these two objects: " t1 t2))))
     false))
@@ -244,17 +247,16 @@
           (:map t1))))
 
    (collection-type? t1)
-   (make-collection (merge-two-homo-mergeable-things (:coll-of t1) (:coll-of t2)))
+   (make-collection
+    [(merge-two-homo-mergeable-things (:coll-of t1) (:coll-of t2))])
 
    (union-type? t1)
-   (let [u1 (:union-of t1)
-         u2 (:union-of t2)]
-     (make-union
-      (map (fn [union-element]
-             (merge-two-homo-mergeable-things
-              union-element
-              (first (filter #(homo-mergeable? union-element %) u2))))
-           u1)))
+   (make-union
+    (map (fn [u1-elem]
+           (let [u2-elem (first
+                          (filter #(homo-mergeable? u1-elem %) (:union-of t2)))]
+             (merge-two-homo-mergeable-things u1-elem u2-elem)))
+         (:union-of t1)))
 
    :else "barf"))
 
@@ -274,7 +276,7 @@
 ;; then output is [merged(a1 a2 a3) b1 merged(c1 c2)]
 (defn reduce-homo-mergeable-things [types]
   (reduce (fn [merged-types type]
-            ;; if something it's mergeable with something...
+            ;; if it's mergeable with something ...
             (if (some true? (map #(homo-mergeable? type %) merged-types))
               ;; ... do the merge
               (map (fn [merged-type]
@@ -290,25 +292,6 @@
 (defn- one? [a-seq]
   (= (count a-seq) 1))
 
-(defn make-collection
-  "If a collection contains no types, there will be no types. As such, this
-will be a collection of :nothing"
-  [types]
-  (Collection. (if (empty? types)
-                 :nothing
-                 (let [unique-types (reduce-homo-mergeable-things types)]
-                   (if (one? unique-types)
-                     (first unique-types)
-                     (make-union unique-types))))))
-
-(defn make-collection-with [& types]
-  (make-collection types))
-
-
-
-
-
-
 (defn make-union [types]
   (let [unique-types (reduce-homo-mergeable-things types)]
     (if (one? unique-types)
@@ -322,13 +305,28 @@ will be a collection of :nothing"
 (defn maybe-make-union [types]
   (cond
     (empty? types) nil
-    (= (count types) 1) (first types)
-    (= (count (set types)) 1) (first types)
+    (one? types) (first types)
     :else (make-union types)))
 
 (defn maybe-make-union-with [& types]
   (maybe-make-union types))
 
+
+
+
+(defn make-collection
+  "If a collection contains no types, there will be no types. As such, this
+will be a collection of :nothing"
+  [types]
+  (Collection. (if (empty? types)
+                 :nothing
+                 (let [unique-types (reduce-homo-mergeable-things types)]
+                   (if (one? unique-types)
+                     (first unique-types)
+                     (make-union unique-types))))))
+
+(defn make-collection-with [& types]
+  (make-collection types))
 
 
 
