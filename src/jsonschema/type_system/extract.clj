@@ -39,11 +39,12 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
 
 (defn make-special [x]
   (cond
-   (special-date? x) (make-date x nil)
+   (special-date? x) (make-date nil)
    (special-id? x) nil))
 
 
 ;; # Implementation for Examples.
+
 (deftype ClojureTypePredicator []
   TypePredicator
   (special? [this x] (or (special-date? x) (special-id? x)))
@@ -85,8 +86,3 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
 
 (defn extract-type [clojure-data-structure]
   (extract (clojure-type-extractor) clojure-data-structure))
-
-
-;;(def x {:a 1 :b 2 :c true :d nil :e 1.0 :f "string"})
-;; (extract-type x)
-;; #jsonschema.type_system.types.Document{:properties [:a :c :b :f :d :e], :map {:a #jsonschema.type_system.types.Int{:min 1, :max 1}, :c #jsonschema.type_system.types.Bool{}, :b #jsonschema.type_system.types.Int{:min 2, :max 2}, :f #jsonschema.type_system.types.Str{:min 6, :max 6}, :d #jsonschema.type_system.types.Null{}, :e #jsonschema.type_system.types.Real{:min 1.0, :max 1.0}}}
