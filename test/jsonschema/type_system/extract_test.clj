@@ -3,8 +3,7 @@
         clojure.pprint
         jsonschema.type-system.types
         jsonschema.type-system.extract
-        cheshire.core)
-  (:import [jsonschema.type_system.extract ClojureTypePredicator ClojureTypeExtractor]))
+        cheshire.core))
 
 (deftest special-predicate-tests
   (testing "Testing the special predicates"
@@ -104,7 +103,7 @@
 
 
 
-(def extractor (clojure-type-extractor))
+(def extractor (merging-clojure-type-extractor))
 
 (defmacro t-is
   ([x val]
@@ -117,7 +116,7 @@
    "b" [1 2 "a" 12 "b"],
    "c" {"a" 5, "b" [1 2 "a" 12 "b"], "c" "date(1234)", "d" [1 2 3]},
    "d" [{"a" 5, "b" [1 2 "a" 12 "b"], "c" "date(1234)", "d" [1 2 3]} 10 "a"]})
-L
+
 (def complex-doc-keys
   {:a 5,
    :c {:a 5, :c "date(1234)", :b [1 2 "a" 12 "b"], :d [1 2 3]},
@@ -142,7 +141,7 @@ L
 
 ;; TODO add tests here for all the type tests above
 (deftest clojure-extractor-test
-  (testing "Testing the ClojureTypeExtractor"
+  (testing "Testing the MergingClojureTypeExtractor"
     (t-is nil (make-null))
     (t-is 5 (make-int 5 5))
     (t-is "hello" (make-str 5 5))
@@ -151,7 +150,7 @@ L
     (t-is true (make-bool))
     (is (thrown? RuntimeException (extract extractor :hello))
         "It shouldn't know what to do with a keyword")
-    (t-is [1 2 3] (make-collection-with (make-int 1 3)))
+    (t-is [1 2 3] #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}})
     (t-is [1 2 "a"] #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 2}]}})
     (t-is [1 2 "a" 12 "b"] #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}]}})
     (t-is {:a 1 :b 2 :c true :d nil :e 1.0 :f "string"} #jsonschema.type_system.types.Document{:properties #{:a :c :b :f :d :e}, :map {:a #jsonschema.type_system.types.Int{:min 1, :max 1}, :c #jsonschema.type_system.types.Bool{}, :b #jsonschema.type_system.types.Int{:min 2, :max 2}, :f #jsonschema.type_system.types.Str{:min 6, :max 6}, :d #jsonschema.type_system.types.Null{}, :e #jsonschema.type_system.types.Real{:min 1.0, :max 1.0}}})
@@ -165,6 +164,6 @@ L
        This isn't really a test. It's for documentation"
     (let [result
           (let [parsed-js (parse-string (slurp "test/jsonschema/type_system/tweets.js"))
-                extractor (clojure-type-extractor)]
+                extractor (merging-clojure-type-extractor)]
             (map #(extract extractor %) parsed-js))]
       (is (coll? result)))))

@@ -16,7 +16,7 @@
 ;; # Generic Helpers for all tests
 
 (def merger (type-merger))
-(def extractor (clojure-type-extractor))
+(def extractor (merging-clojure-type-extractor))
 
 (defmacro merged-is
   ([x1 x2 result]
@@ -47,24 +47,24 @@
    {:name "nested" :coll [[1 2 3] [4 5 6 7] [8 9 2]]}
    {:name "mixed-nested" :coll [ ["string" "string" "string" "string"] [8 9 2] [nil nil] ]}
    {:name "nested-mixed" :coll [ [1 "str" nil] [1 "str" nil] [1 "str" nil] ]}
-   {:name "mixed-nested-mixed" :coll [ [1 "str" nil] [1 "str"] ["id(id)" "str" nil] ]}
+   {:name "mixed-nested-mixed" :coll [ [1 "str" nil] [1 "str"] ["date(id)" "str" nil] ]}
    {:name "empty-nested" :coll [ [ [] [] [] ] [ [] [] ] [ [] 5 [] ] ] }
    ])
 
 (defn generate-name=>coll-type [coll-exprs]
   (extract-map coll-exprs
-               :value-extractor #(extract extractor (:coll %))               
+               :value-extractor #(extract extractor (:coll %))
                :key-extractor #(keyword (:name %))))
 
 
 (def coll-types
   {:empty #jsonschema.type_system.types.Collection{:coll-of :nothing},
-   :single #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :string}},
-   :mixed #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null} #jsonschema.type_system.types.Scalar{:type :bool} #jsonschema.type_system.types.Scalar{:type :id} #jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string} #jsonschema.type_system.types.Scalar{:type :date}}}},
-   :nested #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :int}}},
-   :mixed-nested #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :string}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :null}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :int}}}}},
-   :nested-mixed #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null} #jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}},
-   :mixed-nested-mixed #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null} #jsonschema.type_system.types.Scalar{:type :id} #jsonschema.type_system.types.Scalar{:type :string}}}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null} #jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}}}},
+   :single #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Str{:min 6, :max 6}},
+   :mixed #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Str{:min 5, :max 5} #jsonschema.type_system.types.Int{:min 6, :max 6} #jsonschema.type_system.types.Date{:format nil} #jsonschema.type_system.types.Real{:min 10.209, :max 10.209}]}},
+   :nested #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 9}}},
+   :mixed-nested #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Str{:min 6, :max 6}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 2, :max 9}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Null{}}]}},
+   :nested-mixed #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Int{:min 1, :max 1} #jsonschema.type_system.types.Str{:min 3, :max 3} #jsonschema.type_system.types.Null{}]}}},
+   :mixed-nested-mixed #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Int{:min 1, :max 1} #jsonschema.type_system.types.Str{:min 3, :max 3} #jsonschema.type_system.types.Null{}]}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Int{:min 1, :max 1} #jsonschema.type_system.types.Str{:min 3, :max 3}]}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Date{:format nil} #jsonschema.type_system.types.Str{:min 3, :max 3} #jsonschema.type_system.types.Null{}]}}]}},
    :empty-nested #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of :nothing} #jsonschema.type_system.types.Scalar{:type :int}}}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of :nothing}}}}}})
 
 ;; ## Canonical Document expressions
@@ -135,7 +135,7 @@
    #jsonschema.type_system.types.Document{:properties [:a :name],
                                     :map {:a #jsonschema.type_system.types.Document{:properties [:a-collection],
                                                                               :map {:a-collection
-                                                                                    #jsonschema.type_system.types.Collection{:coll-of
+                                                                                    #jsonschema.type_system.types.Cllection{:coll-of
                                                                                                                        #jsonschema.type_system.types.Scalar{:type :string}}}},
                                           :name #jsonschema.type_system.types.Scalar{:type :string}}},
    :coll-subdoc
@@ -199,123 +199,123 @@
   {:null-string
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null}
                                              #jsonschema.type_system.types.Scalar{:type :string}}},
-   :date-bool 
+   :date-bool
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :bool}
                                              #jsonschema.type_system.types.Scalar{:type :date}}},
-   :string-null 
+   :string-null
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null}
                                              #jsonschema.type_system.types.Scalar{:type :string}}},
-   :int-string 
+   :int-string
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int}
                                                    #jsonschema.type_system.types.Scalar{:type :string}}},
-   :real-string 
+   :real-string
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :real}
                                              #jsonschema.type_system.types.Scalar{:type :string}}},
-   :id-bool 
+   :id-bool
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :bool}
                                              #jsonschema.type_system.types.Scalar{:type :id}}},
-   :date-null 
+   :date-null
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null}
                                              #jsonschema.type_system.types.Scalar{:type :date}}},
-   :date-string 
+   :date-string
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :string}
                                              #jsonschema.type_system.types.Scalar{:type :date}}},
-   :id-null 
+   :id-null
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null}
                                              #jsonschema.type_system.types.Scalar{:type :id}}},
-   :bool-id 
+   :bool-id
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :bool}
                                              #jsonschema.type_system.types.Scalar{:type :id}}},
-   :bool-int 
+   :bool-int
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :bool}
                                                    #jsonschema.type_system.types.Scalar{:type :int}}},
-   :bool-real 
+   :bool-real
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :bool}
                                              #jsonschema.type_system.types.Scalar{:type :real}}},
-   :int-null 
+   :int-null
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null}
                                                    #jsonschema.type_system.types.Scalar{:type :int}}},
-   :real-null 
+   :real-null
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null}
                                              #jsonschema.type_system.types.Scalar{:type :real}}},
 
-   :bool-null 
+   :bool-null
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null}
                                              #jsonschema.type_system.types.Scalar{:type :bool}}},
-   :null-date 
+   :null-date
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null}
                                              #jsonschema.type_system.types.Scalar{:type :date}}},
-   :bool-date 
+   :bool-date
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :bool}
                                              #jsonschema.type_system.types.Scalar{:type :date}}},
-   :int-date 
+   :int-date
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int}
                                                    #jsonschema.type_system.types.Scalar{:type :date}}},
-   :real-date 
+   :real-date
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :real}
                                              #jsonschema.type_system.types.Scalar{:type :date}}},
-   :string-date 
+   :string-date
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :string}
                                              #jsonschema.type_system.types.Scalar{:type :date}}},
-   :string-id 
+   :string-id
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :id}
                                              #jsonschema.type_system.types.Scalar{:type :string}}},
-   :bool-string 
+   :bool-string
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :bool}
                                              #jsonschema.type_system.types.Scalar{:type :string}}},
-   :int-bool 
+   :int-bool
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :bool}
                                                    #jsonschema.type_system.types.Scalar{:type :int}}},
-   :real-bool 
+   :real-bool
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :bool}
                                              #jsonschema.type_system.types.Scalar{:type :real}}},
-   :id-string 
+   :id-string
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :id}
                                              #jsonschema.type_system.types.Scalar{:type :string}}},
-   :id-int 
+   :id-int
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :id}
                                                    #jsonschema.type_system.types.Scalar{:type :int}}},
-   :id-real 
+   :id-real
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :id}
                                              #jsonschema.type_system.types.Scalar{:type :real}}},
-   :string-int 
+   :string-int
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int}
                                                    #jsonschema.type_system.types.Scalar{:type :string}}},
-   :string-real 
+   :string-real
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :real}
                                              #jsonschema.type_system.types.Scalar{:type :string}}},
-   :int-id 
+   :int-id
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :id}
                                                    #jsonschema.type_system.types.Scalar{:type :int}}},
-   :real-id 
+   :real-id
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :id}
                                                    #jsonschema.type_system.types.Scalar{:type :real}}},
 
-   :null-id 
+   :null-id
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null}
                                              #jsonschema.type_system.types.Scalar{:type :id}}},
-   :id-date 
+   :id-date
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :id}
                                              #jsonschema.type_system.types.Scalar{:type :date}}},
-   :date-int 
+   :date-int
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int}
                                              #jsonschema.type_system.types.Scalar{:type :date}}},
-   :null-int 
+   :null-int
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null}
                                                    #jsonschema.type_system.types.Scalar{:type :int}}},
-   :date-real 
+   :date-real
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :real}
                                              #jsonschema.type_system.types.Scalar{:type :date}}},
-   :null-real 
+   :null-real
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null}
                                              #jsonschema.type_system.types.Scalar{:type :real}}},
-   :string-bool 
+   :string-bool
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :bool}
                                              #jsonschema.type_system.types.Scalar{:type :string}}},
-   :date-id 
+   :date-id
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :id}
                                              #jsonschema.type_system.types.Scalar{:type :date}}},
-   :null-bool 
+   :null-bool
    #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null}
                                                    #jsonschema.type_system.types.Scalar{:type :bool}}}
   :real-int
@@ -366,7 +366,6 @@
                scalar then the result is a union of the two types."
       (gen-scalar-scalar-test [:null :bool :int :date :id :string :real])))
 
-
   (testing "Scalar - Collection / Document"
     (testing "Tests if we attempt to merge to a scalar with a document,
             or collection, then the result is a union of the two types."
@@ -386,14 +385,14 @@
      (merged-is (scalar-scalar-unions :null-string) (scalar-types :null)
                 #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null} #jsonschema.type_system.types.Scalar{:type :string}}}))))
 
-  
+
 ;; # Document Tests
 
 ;; ## Document - Scalar / Collection
 (deftest doc-scalar-coll-merging-tests
   (testing "Merging a document with any kind of scalar, or collection
             type results in a union of the two types."
-    (merged-is (doc-types :scalars) (scalar-types :bool) 
+    (merged-is (doc-types :scalars) (scalar-types :bool)
                #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :bool} #jsonschema.type_system.types.Document{:properties [:a :name :c :b :f :d :e], :map {:a #jsonschema.type_system.types.Scalar{:type :string}, :name #jsonschema.type_system.types.Scalar{:type :string}, :c #jsonschema.type_system.types.Scalar{:type :int}, :b #jsonschema.type_system.types.Scalar{:type :null}, :f #jsonschema.type_system.types.Scalar{:type :id}, :d #jsonschema.type_system.types.Scalar{:type :bool}, :e #jsonschema.type_system.types.Scalar{:type :date}}}}})
     (merged-is (doc-types :flat-mixed-collection) (coll-types :mixed)
                #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Document{:properties [:a :name], :map {:a #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null} #jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}}, :name #jsonschema.type_system.types.Scalar{:type :string}}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null} #jsonschema.type_system.types.Scalar{:type :bool} #jsonschema.type_system.types.Scalar{:type :id} #jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string} #jsonschema.type_system.types.Scalar{:type :date}}}}}})))
@@ -415,7 +414,7 @@
 
 (def congruent1
   (extract-type {:a "12"
-                 :b "same type" 
+                 :b "same type"
                  :c ["one"2 "fire" true]
                  :d {:a "ten"
                      :b "same type"
@@ -435,7 +434,7 @@
   (testing "When merging two documents that are **congruent**,
             create a new type where all of their property types are merged."
     (testing "This block tests if things will actually be merged"
-      (merged-is congruent1 congruent2                 
+      (merged-is congruent1 congruent2
                  #jsonschema.type_system.types.Document{:properties [:a :c :b :d :e], :map {:a #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}, :c #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :bool} #jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :int}}}}, :b #jsonschema.type_system.types.Scalar{:type :string}, :d #jsonschema.type_system.types.Document{:properties [:a :c :b :d], :map {:a #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :int} #jsonschema.type_system.types.Scalar{:type :string}}}, :c #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :string}}, :b #jsonschema.type_system.types.Scalar{:type :string}, :d #jsonschema.type_system.types.Document{:properties [:inside], :map {:inside #jsonschema.type_system.types.Scalar{:type :string}}}}}, :e #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :int}}}}}}))
     (testing "This block tests if two things are congruent and have all the same types we'll get something that's equivalent to the original type of either document"
       (is (= (type-merge merger congruent1 congruent1) congruent1)))))
@@ -503,8 +502,8 @@
                                                          #jsonschema.type_system.types.Scalar{:type :int}
                                                          #jsonschema.type_system.types.Document{:properties [:a :b],
                                                                                           :map {:a #jsonschema.type_system.types.Scalar{:type :int},
-                                                                                                :b #jsonschema.type_system.types.Scalar{:type :string}}}}}))    
-      
+                                                                                                :b #jsonschema.type_system.types.Scalar{:type :string}}}}}))
+
   (testing "When merging a document with a union,
             and union contains a document type that is equivalent to this one,
             then this is a no-op"
@@ -571,7 +570,7 @@
           merged-type (apply merge-types some-types)
           reverse-merged-type (apply merge-types reversed-types)]
       (is (and (= merged-type reverse-merged-type)
-               (= merged-type          
+               (= merged-type
                   #jsonschema.type_system.types.Union{:union-of
                                                 #{#jsonschema.type_system.types.Document{:properties [:a], :map {:a #jsonschema.type_system.types.Scalar{:type :string}}}
                                                   #jsonschema.type_system.types.Scalar{:type :int}
@@ -625,13 +624,3 @@
                                                                                           :b #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null}
                                                                                                                                        #jsonschema.type_system.types.Scalar{:type :bool}
                                                                                                                                        #jsonschema.type_system.types.Scalar{:type :int}}}}}}})))))
-
-                            
-
-
-
-
-    
-               
-
-

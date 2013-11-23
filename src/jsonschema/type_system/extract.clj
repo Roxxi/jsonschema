@@ -1,6 +1,9 @@
 (ns jsonschema.type-system.extract
   (:require [jsonschema.type-system.types :refer :all]
-            [roxxi.utils.collections :refer :all]))
+            [jsonschema.type-system.merge :refer [merge-reducer]]
+            [jsonschema.type-system.simplify :refer [simplify-reducer]]
+            [roxxi.utils.collections :refer :all]
+            [roxxi.utils.print :refer [print-expr]]))
 
 ;; # General Concepts for deriving types from structures
 (defprotocol TypePredicator
@@ -56,7 +59,7 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
   (document? [this x] (map? x))
   (collection? [this x] (or (vector? x) (list? x))))
 
-(deftype ClojureTypeExtractor [pred]
+(deftype MergingClojureTypeExtractor [pred]
   TypeExtractor
   (extract [extractor x]
     (cond
@@ -68,10 +71,27 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
      (str? pred x) (make-str x),
      (document? pred x) (make-document
                          (project-map x :value-xform #(extract extractor %))),
-     (collection? pred x) (make-collection (map #(extract extractor %) x))
+     (collection? pred x) (make-collection (map #(extract extractor %) x) merge-reducer)
      :else (throw
             (RuntimeException.
-             (str "Do not know how to extract a type from " x " of class " (class x)))))))
+             (str "Do not know how to merge-extract a type from " x " of class " (class x)))))))
+
+(deftype SimplifyingClojureTypeExtractor [pred]
+  TypeExtractor
+  (extract [extractor x]
+    (cond
+     (special? pred x) (make-special x),
+     (null? pred x) (make-null),
+     (bool? pred x) (make-bool),
+     (int? pred x) (make-int x),
+     (real? pred x) (make-real x),
+     (str? pred x) (make-str x),
+     (document? pred x) (make-document
+                         (project-map x :value-xform #(extract extractor %))),
+     (collection? pred x) (make-collection (map #(extract extractor %) x) simplify-reducer)
+     :else (throw
+            (RuntimeException.
+             (str "Do not know how to simplify-extract a type from " x " of class " (class x)))))))
 
 ;; ## Factory methods.
 
@@ -79,10 +99,13 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
   (ClojureTypePredicator.))
 
 
-(defn clojure-type-extractor []
-  (ClojureTypeExtractor. (clojure-predicator)))
+(defn merging-clojure-type-extractor []
+  (MergingClojureTypeExtractor. (clojure-predicator)))
+
+(defn simplifying-clojure-type-extractor []
+  (SimplifyingClojureTypeExtractor. (clojure-predicator)))
 
 ;; # Convenience functions
 
 (defn extract-type [clojure-data-structure]
-  (extract (clojure-type-extractor) clojure-data-structure))
+  (extract (merging-clojure-type-extractor) clojure-data-structure))
