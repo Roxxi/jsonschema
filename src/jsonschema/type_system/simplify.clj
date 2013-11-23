@@ -5,24 +5,21 @@
             [roxxi.utils.print :refer [print-expr]]
             [jsonschema.type-system.merge-common :refer
              [make-type-merger
-              congruent?
-              incongruent?
-              merge-compatible?
-              reduce-compatible-things]]))
+              simplify-compatible?
+              reduce-compatible-types]]))
 
-(declare simplifying-type-merger)
+;; # Merging of the various types
 
-;; ## Merging helpers
+(declare type-simplifier)
+(declare simplify-reducer)
+(declare simplify-two-types)
 
-(defn type-simplifier []
-  (make-type-merger simple-type*type=>merge-fn))
+;; ## Scalars
 
-(defn simplify-reducer [types]
-  (reduce-compatible-things types
-                            simplify-compatible?
-                            #(type-merge (type-simplifier) % %2)))
+(defn compact-merge-scalar-union [s u]
+  (merge-scalar-union s u :type-reducer simplify-reducer))
 
-;; ## Merging of the various types
+;; ## Documents
 
 ;; `merge-with` will merge corresponding key-value pairs across maps
 ;; applying the function provided as the first arguement to `merge-with`
@@ -30,31 +27,33 @@
 ;; _m1, m2, m3, ..._, respectively.
 ;;
 (defn compact-merge-document-document [d1 d2]
-  (make-document
-   (merge-with
-    #(type-merge (simplifying-type-merger) % %2)
-    (:map d1) (:map d2))))
+  (make-document (merge-with simplify-two-types (:map d1) (:map d2))))
 
 (defn compact-merge-document-union [d u]
-  (let [docs (document-types u)]
-    (cond
-      (empty? docs) (make-union (conj (:union-of u) d) simplify-reducer)
-      ;; Assumes there is only ONE document in the union
-      :else
-      (let [merged-doc (reduce compact-merge-document-document d docs)
-            non-docs (non-document-types u)]
-        (make-union (conj non-docs merged-doc)
-                    simplify-reducer)))))
+  (merge-document-union d u :type-reducer simplify-reducer))
+
+;; ## Collections
 
 (defn compact-merge-collection-collection [c1 c2]
-  (merge-collection-collection c1 c2
-                               :mergeable? simplify-compatible?
-                               :type-reducer simplify-reducer))
+  (cond
+   (and (empty-collection? c1) (empty-collection? c2))
+   c1 ;; either, really.
+   (empty-collection? c1)
+   c2
+   (empty-collection? c2)
+   c1
+   (simplify-compatible? (:coll-of c1) (:coll-of c2))
+   (make-collection [(simplify-two-types (:coll-of c1) (:coll-of c2))])
+   :else
+   (make-union [c1 c2])))
 
 (defn compact-merge-collection-union [c u]
-  (merge-collection-union c u
-                          :mergeable? simplify-compatible?
-                          :type-reducer simplify-reducer))
+  (merge-collection-union c u :type-reducer simplify-reducer))
+
+;; ## Unions
+
+(defn compact-merge-union-scalar [u s]
+  (compact-merge-scalar-union s u))
 
 (defn compact-merge-union-document [u d]
   (compact-merge-document-union d u))
@@ -63,32 +62,35 @@
   (compact-merge-collection-union c u))
 
 (defn compact-merge-union-union [u1 u2]
-  (let [[u1-docs u2-docs] [(document-types u1) (document-types u2)]]
-    (if (and (empty? u1-docs) (empty? u2-docs))
-      (make-union (union (non-document-types u1) (non-document-types u2))
-                  simplify-reducer)
-      (make-union
-       (conj
-        (union (non-document-types u1) (non-document-types u2))
-        (reduce compact-merge-document-document
-                (union (document-types u1) (document-types u2))))
-       simplify-reducer))))
+  (merge-union-union u1 u2 :type-reducer simplify-reducer))
+
+;; # The money
 
 ;; see merge.clj
 (def simple-type*type=>merge-fn
   (reduce extend-merge-fn-mappings
           type*type=>merge-fn
-          [[:document :document compact-merge-document-document]
+          [[:scalar :union compact-merge-scalar-union]
+           [:document :document compact-merge-document-document]
            [:document :union compact-merge-document-union]
            [:collection :collection compact-merge-collection-collection]
            [:collection :union compact-merge-collection-union]
+           [:union :scalar compact-merge-union-scalar]
            [:union :document compact-merge-union-document]
            [:union :collection compact-merge-union-collection]
            [:union :union compact-merge-union-union]]))
 
-
-
-;; Convenience function
 (defn simplify-types [& types]
-  (let [merger (simplifying-type-merger)]
-    (reduce #(type-merge merger % %2) types)))
+  (let [simplifier (type-simplifier)]
+    (reduce #(type-merge simplifier % %2) types)))
+
+(defn type-simplifier []
+  (make-type-merger simple-type*type=>merge-fn))
+
+
+
+(defn simplify-two-types [t1 t2]
+  (type-merge (type-simplifier) t1 t2))
+
+(defn simplify-reducer [types]
+  (reduce-compatible-types types simplify-compatible? #(simplify-two-types % %2)))

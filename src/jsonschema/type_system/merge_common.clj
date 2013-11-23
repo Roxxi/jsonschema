@@ -101,9 +101,6 @@
           (str "Don't know how to decide if these two objects "
                "are compatible: " t1 ", " t2))))
 
-
-
-
 (defn merge-compatible? [t1 t2]
   (compatible? t1 t2 :merge))
 
@@ -116,7 +113,7 @@
 ;;
 ;; if input is [a1 a2 b1 c1 a3 c2]
 ;; then output is [merged(a1 a2 a3) b1 merged(c1 c2)]
-(defn reduce-compatible-things [types compatible? merge-two-compatible-things]
+(defn reduce-compatible-types [types compatible? merge-two-compatible-things]
   (reduce (fn [merged-types type]
             ;; if it's mergeable with something ...
             (if (some #(compatible? type %) merged-types)
@@ -132,6 +129,36 @@
           types))
 
 
+;; # Unions and Collections helpers
+
+(defn- one? [a-seq]
+  (= (count a-seq) 1))
+
+(defn- flatten-nested-unions [types]
+  (let [non-unions (remove union-type? types)
+        unions (filter union-type? types)
+        flattened-unions (reduce
+                          (fn [vector union] (concat vector (:union-of union)))
+                          []
+                          unions)]
+    (union non-unions flattened-unions)))
+
+
+(defn turn-into-a-union [type-reducer types]
+  (if (some #(union-type? %) types)
+    ;; only flattens one level, but this will recurse until they're all unflattened
+    (turn-into-a-union type-reducer (flatten-nested-unions types))
+    (let [unique-types (type-reducer types)]
+      (cond
+       (empty? types) nil
+       (one? unique-types) (first unique-types)
+       :else (make-union unique-types)))))
+
+(defn turn-into-a-union-with [type-reducer & types]
+  (maybe-make-union type-reducer types))
+
+
+
 
 
 
@@ -140,7 +167,8 @@
 ;; true
 ;; (merge-compatible? (make-collection-with (make-int 4)) (make-int 4))
 ;; false
-;; (merge-two-types (extract-type [1 2 3]) (extract-type 4))
+
+
 
 ;; (merge-two-types (extract-type {:a 1}) (extract-type {:a "hello"}))
 ;; (make-document {:a (make-union-with (make-int 1) (make-str "hello"))})
@@ -149,3 +177,17 @@
 ;;                  (make-document {:a (make-str "hello") :b (make-int 1)}))
 ;; (simplify-two-types (extract-type {:a 1}) (extract-type {:a "hello", :b 1}))
 ;; (make-document {:a (make-union-with (make-int 1) (make-str "hello")) :b (make-int 1)})
+
+;; # Corner cases to use
+
+;; (extract-type [ [] [] ])
+
+;; # Differences between merge and simplify
+;; (merge {:a 1} {:a 1 :b 2}) => union(dict(:a int), dict(:a int, :b int))
+;; (simplify {:a 1} {:a 1 :b 2}) => dict(:a int, :b int)
+;;
+;; (merge [] [1]) => union(coll of :nothing, coll of int)
+;; (simplify [] [1]) => coll of int
+
+;; (merge OR simplify [1 2 3] 4) => union(int, coll of int)
+;; (merge OR simplify {:a 1} {:a "str"}) => dict(:a union(int,str))

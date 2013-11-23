@@ -71,7 +71,7 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
      (str? pred x) (make-str x),
      (document? pred x) (make-document
                          (project-map x :value-xform #(extract extractor %))),
-     (collection? pred x) (make-collection (map #(extract extractor %) x) merge-reducer)
+     (collection? pred x) (make-collection (map #(extract extractor %) x))
      :else (throw
             (RuntimeException.
              (str "Do not know how to merge-extract a type from " x " of class " (class x)))))))
@@ -88,7 +88,7 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
      (str? pred x) (make-str x),
      (document? pred x) (make-document
                          (project-map x :value-xform #(extract extractor %))),
-     (collection? pred x) (make-collection (map #(extract extractor %) x) simplify-reducer)
+     (collection? pred x) (make-collection (map #(extract extractor %) x))
      :else (throw
             (RuntimeException.
              (str "Do not know how to simplify-extract a type from " x " of class " (class x)))))))

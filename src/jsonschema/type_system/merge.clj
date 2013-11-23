@@ -2,48 +2,36 @@
   (:require [jsonschema.type-system.types :refer :all]
             [jsonschema.type-system.merge-common :refer
              [make-type-merger
-              congruent?
               incongruent?
               merge-compatible?
-              reduce-compatible-things]]
+              reduce-compatible-types
+              turn-into-a-union-with]]
             [clojure.set :refer [union]]))
 
-(declare type*type=>merge-fn)
+;; # Merging of all of the various types
 
-(defn type-merger []
-  (make-type-merger type*type=>merge-fn))
+(declare type-merger)
+(declare merge-reducer)
+(declare merge-two-types)
 
-(defn merge-reducer [types]
-  (reduce-compatible-things types
-                            merge-compatible?
-                            #(type-merge (type-merger) % %2)))
-
-;; ## Merging of all of the various types
-;; ### Scalar merging
+;; ## Scalars
 
 (defn merge-scalar-scalar [s1 s2]
   (if (same-type? s1 s2)
     (merge-same-typed-scalars s1 s2)
-    (make-union-with s1 s2 merge-reducer)))
+    (make-union s1 s2)))
 
 (defn merge-scalar-document [s d]
-  (make-union-with s d merge-reducer))
+  (make-union s d))
 
 (defn merge-scalar-collection [s c]
-  (make-union-with s c merge-reducer))
+  (make-union s c))
 
-(defn merge-scalar-union [s u]
-  (if (some #(same-type? s %) (:union-of u))
-    ;; Assumes that it's only mergeable with ONE element in the union.
-    (make-union (map (fn [u-elem]
-                       (if (same-type? s u-elem)
-                         (merge-same-typed-scalars s u-elem)
-                         u-elem))
-                     (:union-of u))
-                merge-reducer) ;; XXX merge-reducer
-    (make-union (conj (:union-of u) s) merge-reducer))) ;; XXX merge-reducer
+(defn merge-scalar-union [s u & {:keys [type-reducer]
+                                    :or {type-reducer merge-reducer}}]
+  (turn-into-a-union-with type-reducer s u))
 
-;; ### Document merging
+;; ## Documents
 
 (defn merge-document-scalar [d s]
   (merge-scalar-document s d))
@@ -55,30 +43,17 @@
 ;;
 (defn merge-document-document [d1 d2]
   (if (incongruent? d1 d2)
-    (make-union-with d1 d2 merge-reducer)
-    (make-document
-     (merge-with
-      #(type-merge (type-merger) % %2)
-      (:map d1) (:map d2)))))
+    (make-union d1 d2)
+    (make-document (merge-with merge-two-types (:map d1) (:map d2)))))
 
 (defn merge-document-collection [d c]
-  (make-union-with d c merge-reducer))
+  (make-union d c))
 
-(defn merge-document-union [d u]
-  (let [docs (document-types u)]
-    (cond
-     (empty? docs) (make-union (conj (:union-of u) d) merge-reducer)
-     (every? #(incongruent? d %) docs) (make-union (conj (:union-of u) d)
-                                                   merge-reducer),
-     :else
-     ;; Assumes that it's only congruent to ONE element in the union.
-     (let [congruent-doc (some #(when (congruent? d %) %) docs)
-           existing-types (:union-of u)]
-       (make-union (conj (disj existing-types congruent-doc)
-                         (merge-document-document d congruent-doc)
-                         merge-reducer))))))
+(defn merge-document-union [d u & {:keys [type-reducer]
+                                    :or {type-reducer merge-reducer}}]
+  (turn-into-a-union-with type-reducer d u))
 
-;; ### Collection merging
+;; ## Collections
 
 (defn merge-collection-scalar [c s]
   (merge-scalar-collection s c))
@@ -86,29 +61,22 @@
 (defn merge-collection-document [c d]
   (merge-document-collection d c))
 
-(defn merge-collection-collection [c1 c2 & {:keys [mergeable?
-                                                   type-reducer]
-                                            :or {mergeable? merge-compatible?
-                                                 type-reducer merge-reducer}}]
-  (if (mergeable? c1 c2)
-    (make-collection-with (:coll-of c1) (:coll-of c2) type-reducer)
-    (make-union-with c1 c2 type-reducer)))
+(defn merge-collection-collection [c1 c2]
+  (cond
+   (and (empty-collection? c1) (empty-collection? c2))
+   c1 ;; either, really.
+   (or (empty-collection? c1) (empty-collection? c2))
+   (make-union [c1 c2])
+   (merge-compatible? (:coll-of c1) (:coll-of c2))
+   (make-collection [(merge-two-types (:coll-of c1) (:coll-of c2))])
+   :else
+   (make-union [c1 c2])))
 
-(defn merge-collection-union [c u & {:keys [mergeable?
-                                            type-reducer]
-                                     :or {mergeable? merge-compatible?
-                                          type-reducer (merge-reducer)}}]
-  (if (some #(mergeable? c %) (:union-of u))
-    (make-union (map (fn [u-elem]
-                       (if (mergeable? c u-elem)
-                         (type-merge merger c u-elem)
-                         u-elem))
-                     (:union-of u))
-                type-reducer)
-    (make-union (conj (:union-of u) c)
-                type-reducer)))
+(defn merge-collection-union [c u & {:keys [type-reducer]
+                                     :or {type-reducer merge-reducer}}]
+  (turn-into-a-union-with type-reducer c u))
 
-;; ### Union merging
+;; ## Unions
 
 (defn merge-union-scalar [u s]
   (merge-scalar-union s u))
@@ -119,22 +87,11 @@
 (defn merge-union-collection [u c]
   (merge-collection-union c u))
 
+(defn merge-union-union [u1 u2 & {:keys [type-reducer]
+                                     :or {type-reducer merge-reducer}}]
+  (turn-into-a-union-with type-reducer u1 u2))
 
-(defn merge-union-union [u1 u2]
-  (make-union
-   (reduce (fn [merged-types type]
-             (if (some true? (map #(merge-compatible? type %) merged-types))
-               ;; ... do the merge
-               (map (fn [merged-type]
-                      (if (merge-compatible? merged-type type)
-                        (type-merge (type-merger) merged-type type)
-                        merged-type))
-                    merged-types)
-               ;; ... otherwise insert it
-               (conj merged-types type)))
-           []
-           (union (:union-of u1) (:union-of u2)))
-   merge-reducer))
+;; # The money
 
 (def type*type=>merge-fn
   {:scalar {:scalar merge-scalar-scalar
@@ -157,14 +114,20 @@
 (defn extend-merge-fn-mappings [merge-fn-map [type1 type2 merge-fn]]
   (assoc-in merge-fn-map [type1 type2] merge-fn))
 
-
-
-
-;; Convenience function
-
 (defn merge-types [& types]
   (let [merger (type-merger)]
     (reduce #(type-merge merger % %2) types)))
+
+(defn type-merger []
+  (make-type-merger type*type=>merge-fn))
+
+
+
+(defn merge-two-types [t1 t2]
+  (type-merge (type-merger) t1 t2))
+
+(defn merge-reducer [types]
+  (reduce-compatible-types types merge-compatible? #(merge-two-types % %2)))
 
 
 ;; (defn init-scalars []
