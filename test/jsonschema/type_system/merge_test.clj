@@ -465,72 +465,60 @@
                                                                  #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 5, :max 6}}
                                                                  #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Str{:min 1, :max 1}}}}))))
 
-;; ;; Union Merging
+;; # Union Tests
 
+(deftest union-tests
+  (testing "Identity: Unions always contain a unique set of types.
+            (i.e. _if( u1 contains t1 and t1.equals(t2) )_ then
+            _merge(u1, t2).equals(u1)_ is true"
+    (let [some-types (map extract-type ["hello"  "hello" 5
+                                        "hi" 5  [4 5 6]
+                                        [7 8 9] "hi" [7 8 9]
+                                        42 {:a "crazy"} {:a "hello"}])
+          reversed-types (reverse some-types)
+          merged-type (apply merge-types some-types)
+          reverse-merged-type (apply merge-types reversed-types)]
+      (is (and (= merged-type reverse-merged-type)
+               (= merged-type
+                  #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 5, :max 42}
+                                                                  #jsonschema.type_system.types.Str{:min 2, :max 5}
+                                                                  #jsonschema.type_system.types.Document{:properties #{:a}, :map {:a #jsonschema.type_system.types.Str{:min 5, :max 5}}}
+                                                                  #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 4, :max 9}}}})))))
 
-;; (deftest union-tests
-;;   (testing "Identity: Unions always contain a unique set of types.
-;;             (i.e. _if( u1 contains t1 and t1.equals(t2) )_ then
-;;             _merge(u1, t2).equals(u1)_ is true"
-;;     (let [some-types (map extract-type ["hello"  "hello" 5
-;;                                         "hi" 5  [4 5 6]
-;;                                         [7 8 9] "hi" [7 8 9]
-;;                                         42 {:a "crazy"} {:a "hello"}])
-;;           reversed-types (reverse some-types)
-;;           merged-type (apply merge-types some-types)
-;;           reverse-merged-type (apply merge-types reversed-types)]
-;;       (is (and (= merged-type reverse-merged-type)
-;;                (= merged-type
-;;                   #jsonschema.type_system.types.Union{:union-of
-;;                                                 #{#jsonschema.type_system.types.Document{:properties [:a], :map {:a #jsonschema.type_system.types.Scalar{:type :string}}}
-;;                                                   #jsonschema.type_system.types.Scalar{:type :int}
-;;                                                   #jsonschema.type_system.types.Scalar{:type :string}
-;;                                                   #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :int}}}})))))
-;;   (testing "Union - Union"
-;;     (testing "If we attempt to merge two union types,
-;;               the result is a union type containing a set
-;;               containing the elements of
-;;               1. The set of scalars amongst the two
-;;               2. The set of collections amongst the two
-;;               3. The set of documents as a result of
-;;                  merging any congruent documents"
-;;       (let
-;;           [some-types (map extract-type ["hello" 5 nil
-;;                                          {:a "crazy"}
-;;                                          {:a "hello"}
-;;                                          {:a "hello"
-;;                                           :b 5}
-;;                                          {:a "hello"
-;;                                           :b true}
-;;                                          {:a 10
-;;                                           :c 10}])
-;;            other-types (map extract-type ["hello" 5 nil
-;;                                          {:a "crazy"}
-;;                                          {:a "hello"}
-;;                                          {:a nil
-;;                                           :b nil}
-;;                                          {:a nil
-;;                                           :b nil}
-;;                                          {:x "x"
-;;                                           :y "y"}])
-;;            union1 (apply merge-types some-types)
-;;            union2 (apply merge-types other-types)]
-;;         (merged-is union1 union2
-;;                    #jsonschema.type_system.types.Union{:union-of
-;;                                                  #{#jsonschema.type_system.types.Scalar{:type :null}
-;;                                                    #jsonschema.type_system.types.Document{:properties [:a],
-;;                                                                                     :map {:a #jsonschema.type_system.types.Scalar{:type :string}}}
-;;                                                    #jsonschema.type_system.types.Scalar{:type :int}
-;;                                                    #jsonschema.type_system.types.Scalar{:type :string}
-;;                                                    #jsonschema.type_system.types.Document{:properties [:y :x],
-;;                                                                                     :map {:y #jsonschema.type_system.types.Scalar{:type :string},
-;;                                                                                           :x #jsonschema.type_system.types.Scalar{:type :string}}}
-;;                                                    #jsonschema.type_system.types.Document{:properties [:a :c],
-;;                                                                                     :map {:a #jsonschema.type_system.types.Scalar{:type :int},
-;;                                                                                           :c #jsonschema.type_system.types.Scalar{:type :int}}}
-;;                                                    #jsonschema.type_system.types.Document{:properties [:a :b],
-;;                                                                                     :map {:a #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null}
-;;                                                                                                                                        #jsonschema.type_system.types.Scalar{:type :string}}},
-;;                                                                                           :b #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null}
-;;                                                                                                                                        #jsonschema.type_system.types.Scalar{:type :bool}
-;;                                                                                                                                        #jsonschema.type_system.types.Scalar{:type :int}}}}}}})))))
+  (testing "Union - Union"
+    (testing "If we attempt to merge two union types,
+              the result is a union type containing a set
+              containing the elements of
+              1. The set of scalars amongst the two
+              2. The set of collections amongst the two
+              3. The set of documents as a result of
+                 merging any congruent documents"
+      (let
+          [some-types (map extract-type ["hello" 5 nil
+                                         {:a "crazy"}
+                                         {:a "hello"}
+                                         {:a "hello"
+                                          :b 5}
+                                         {:a "hello"
+                                          :b true}
+                                         {:a 10
+                                          :c 10}])
+           other-types (map extract-type ["hello" 5 nil
+                                         {:a "crazy"}
+                                         {:a "hello"}
+                                         {:a nil
+                                          :b nil}
+                                         {:a nil
+                                          :b nil}
+                                         {:x "x"
+                                          :y "y"}])
+           union1 (apply merge-types some-types)
+           union2 (apply merge-types other-types)]
+        (merged-is union1 union2
+                   #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{}
+                                                                   #jsonschema.type_system.types.Str{:min 5, :max 5}
+                                                                   #jsonschema.type_system.types.Int{:min 5, :max 5}
+                                                                   #jsonschema.type_system.types.Document{:properties #{:y :x}, :map {:y #jsonschema.type_system.types.Str{:min 1, :max 1}, :x #jsonschema.type_system.types.Str{:min 1, :max 1}}}
+                                                                   #jsonschema.type_system.types.Document{:properties #{:a}, :map {:a #jsonschema.type_system.types.Str{:min 5, :max 5}}}
+                                                                   #jsonschema.type_system.types.Document{:properties #{:a :b}, :map {:a #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Str{:min 5, :max 5}}}, :b #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Int{:min 5, :max 5}}}}}
+                                                                   #jsonschema.type_system.types.Document{:properties #{:a :c}, :map {:a #jsonschema.type_system.types.Int{:min 10, :max 10}, :c #jsonschema.type_system.types.Int{:min 10, :max 10}}}}})))))
