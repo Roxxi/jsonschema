@@ -1,7 +1,8 @@
 (ns jsonschema.type-system.merge-common
   "Things that are needed by both merge.clj and simplify.clj."
   (:require [jsonschema.type-system.types :refer :all]
-            [clojure.set :refer [union]]))
+            [clojure.set :refer [union]]
+            [roxxi.utils.print :refer [print-expr]]))
 
 ;; # Core abstraction of merging types
 
@@ -41,8 +42,8 @@
 ;;      (possibly with different metadata)
 ;;   2) The merge result has a different type than both input types
 ;;      (and it will necessarily be a Union type).
-;; Two things are merge-compatible if merging them looks like case 1.
-;; Otherwise, they are not merge-compatible, and merging them will result in a
+;; Two things are compatible if merging them looks like case 1.
+;; Otherwise, they are not compatible, and merging them will result in a
 ;; Union type.
 (defn type-dispatcher [t1 t2 merge-notion]
   (cond
@@ -60,7 +61,7 @@
 (defmulti compatible? type-dispatcher)
 
 (defmethod compatible? :scalar [t1 t2 merge-notion]
-  (= (getType t1) (getType t2)))
+  (same-type? t1 t2))
 
 (defmethod compatible? :document [t1 t2 merge-notion]
   (condp = merge-notion
@@ -68,30 +69,39 @@
     :simplify true))
 
 (defmethod compatible? :collection [t1 t2 merge-notion]
-  (let [c1 (:coll-of t1)
-        c2 (:coll-of t2)]
-    (condp = merge-notion
-      :merge (cond
-              (and (= :nothing c1) (= :nothing c2)) true
-              (or (= :nothing c1) (= :nothing c2)) false
-              :else (compatible? c1 c2 merge-notion))
-      :simplify (cond
-                 (or (= :nothing c1) (= :nothing c2)) true
-                 :else (compatible? c1 c2 merge-notion)))))
+  (condp = merge-notion
+    :merge (cond
+            (and (empty-collection? t1) (empty-collection? t2)) true
+            (or (empty-collection? t1) (empty-collection? t2)) false
+            :else (compatible? (:coll-of t1) (:coll-of t2) merge-notion))
+    :simplify (cond
+               (or (empty-collection? t1) (empty-collection? t2)) true
+               :else (compatible? (:coll-of t1) (:coll-of t2) merge-notion))))
 
 (defmethod compatible? :union [t1 t2 merge-notion]
-  (if (and (union-type? t1) (union-type? t2))
-    ;; if both unions, they should be compatible unions
-    (let [u1 (:union-of t1)
-          u2 (:union-of t2)]
-      (and (= (count u1) (count u2))
-           (every? true? (map
-                          (fn [union-element]
-                            (some #(compatible? union-element % merge-notion) u2))
-                          u1))))
-    ;; if only one is a union
-    (let [[the-union other] (if (union-type? t1) [t1 t2] [t2 t1])]
-      (some #(compatible? other % merge-notion) (:union-of the-union)))))
+  (condp = merge-notion
+    :merge
+    (and (union-type? t1)
+         (union-type? t2)
+         (every? true? (map
+                        (fn [union-element]
+                          (some #(compatible? union-element % merge-notion)
+                                (:union-of t2)))
+                        (:union-of t1)))
+         (every? true? (map
+                        (fn [union-element]
+                          (some #(compatible? union-element % merge-notion)
+                                (:union-of t1)))
+                        (:union-of t2))))
+    :simplify
+    ;; (if (and (union-type? t1) (union-type? t2))
+    ;;     ;; if both unions, merge them!
+    ;;     true
+    ;;     ;; if only one is a union
+    ;;     (let [[the-union other] (if (union-type? t1) [t1 t2] [t2 t1])]
+    ;;       (some #(compatible? other % merge-notion) (:union-of the-union))))
+    true
+    ))
 
 (defmethod compatible? :non-mergeable-types [t1 t2 merge-notion]
   false)
@@ -134,7 +144,7 @@
 (defn- one? [a-seq]
   (= (count a-seq) 1))
 
-(defn- flatten-nested-unions [types]
+(defn flatten-nested-unions [types]
   (let [non-unions (remove union-type? types)
         unions (filter union-type? types)
         flattened-unions (reduce
@@ -155,11 +165,18 @@
        :else (make-union unique-types)))))
 
 (defn turn-into-a-union-with [type-reducer & types]
-  (maybe-make-union type-reducer types))
+  (turn-into-a-union type-reducer types))
 
+(defn turn-into-a-collection [type-reducer types]
+  (let [unique-types (type-reducer types)]
+    (make-collection
+     (cond
+      (empty? unique-types) :nothing
+      (one? unique-types) (first unique-types)
+      :else (make-union unique-types)))))
 
-
-
+(defn turn-into-a-collection-with [type-reducer & types]
+  (turn-into-a-collection type-reducer types))
 
 
 ;; (merge-compatible? (make-union-with (make-str "foo") (make-int 3))
@@ -180,14 +197,29 @@
 
 ;; # Corner cases to use
 
-;; (extract-type [ [] [] ])
+;; (extract-type [ [] [] ]) => should be coll(coll(nothing))
 
 ;; # Differences between merge and simplify
 ;; (merge {:a 1} {:a 1 :b 2}) => union(dict(:a int), dict(:a int, :b int))
 ;; (simplify {:a 1} {:a 1 :b 2}) => dict(:a int, :b int)
 ;;
-;; (merge [] [1]) => union(coll of :nothing, coll of int)
-;; (simplify [] [1]) => coll of int
+;; (merge [] [1]) => union(coll(:nothing), coll(int))
+;; (simplify [] [1]) => coll(int)
 
-;; (merge OR simplify [1 2 3] 4) => union(int, coll of int)
+
+;; (merge OR simplify [1 2 3] 4) => union(int, coll(int))
 ;; (merge OR simplify {:a 1} {:a "str"}) => dict(:a union(int,str))
+
+
+;; (merge [ [1] ["a"] [2 "asdf"] ]) => coll(union(coll(int),
+;;                                                coll(str),
+;;                                                coll(union(int,str))))
+;; (simplify [ [1] ["a"] [2 "asdf"] ]) => coll(coll(union(int,str)))
+
+;; (merge [[1, "a"] [1, true]]) => coll(union(coll(int,str)
+;;                                            coll(int,bool)))
+;; (simplify [[1, "a"] [1, true]]) => coll(coll(union(int,str,bool)))
+
+;; (merge [[1, true, "a"] [1, false]]) => coll(union(coll(int,bool,str)
+;;                                                   coll(int,bool)))
+;; (simplify [[1, true, "a"] [1, false]]) => coll(coll(union(int,bool,str)))

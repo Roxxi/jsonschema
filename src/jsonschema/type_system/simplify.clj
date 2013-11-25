@@ -4,7 +4,8 @@
   (:require [clojure.set :refer [union]]
             [roxxi.utils.print :refer [print-expr]]
             [jsonschema.type-system.merge-common :refer
-             [make-type-merger
+             [type-merge
+              make-type-merger
               simplify-compatible?
               reduce-compatible-types]]))
 
@@ -43,7 +44,7 @@
    (empty-collection? c2)
    c1
    (simplify-compatible? (:coll-of c1) (:coll-of c2))
-   (make-collection [(simplify-two-types (:coll-of c1) (:coll-of c2))])
+   (make-collection (simplify-two-types (:coll-of c1) (:coll-of c2)))
    :else
    (make-union [c1 c2])))
 

@@ -1,7 +1,8 @@
 (ns jsonschema.type-system.merge
   (:require [jsonschema.type-system.types :refer :all]
             [jsonschema.type-system.merge-common :refer
-             [make-type-merger
+             [type-merge
+              make-type-merger
               incongruent?
               merge-compatible?
               reduce-compatible-types
@@ -19,13 +20,13 @@
 (defn merge-scalar-scalar [s1 s2]
   (if (same-type? s1 s2)
     (merge-same-typed-scalars s1 s2)
-    (make-union s1 s2)))
+    (make-union-with s1 s2)))
 
 (defn merge-scalar-document [s d]
-  (make-union s d))
+  (make-union-with s d))
 
 (defn merge-scalar-collection [s c]
-  (make-union s c))
+  (make-union-with s c))
 
 (defn merge-scalar-union [s u & {:keys [type-reducer]
                                     :or {type-reducer merge-reducer}}]
@@ -43,11 +44,11 @@
 ;;
 (defn merge-document-document [d1 d2]
   (if (incongruent? d1 d2)
-    (make-union d1 d2)
+    (make-union-with d1 d2)
     (make-document (merge-with merge-two-types (:map d1) (:map d2)))))
 
 (defn merge-document-collection [d c]
-  (make-union d c))
+  (make-union-with d c))
 
 (defn merge-document-union [d u & {:keys [type-reducer]
                                     :or {type-reducer merge-reducer}}]
@@ -66,11 +67,11 @@
    (and (empty-collection? c1) (empty-collection? c2))
    c1 ;; either, really.
    (or (empty-collection? c1) (empty-collection? c2))
-   (make-union [c1 c2])
+   (make-union-with c1 c2)
    (merge-compatible? (:coll-of c1) (:coll-of c2))
-   (make-collection [(merge-two-types (:coll-of c1) (:coll-of c2))])
+   (make-collection (merge-two-types (:coll-of c1) (:coll-of c2)))
    :else
-   (make-union [c1 c2])))
+   (make-union-with c1 c2)))
 
 (defn merge-collection-union [c u & {:keys [type-reducer]
                                      :or {type-reducer merge-reducer}}]

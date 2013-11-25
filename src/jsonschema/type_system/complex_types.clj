@@ -42,14 +42,18 @@
   (Document. (set (keys property-type-map))
              property-type-map))
 
+;; NB the 'set' is not to dedup but to make the equality of unions be
+;;    determined by their contents, regardless of the ORDER of their
+;;    contents.
 (defn make-union [non-mergeable-types]
-  (Union. non-mergeable-types))
+  (Union. (set non-mergeable-types)))
 
-(defn make-collection [non-mergeable-types]
-  (Collection. (cond
-                (empty? non-mergeable-types) :nothing
-                (one? non-mergeable-types) (first non-mergeable-types)
-                :else (make-union non-mergeable-types))))
+(defn make-union-with [& non-mergeable-types]
+  (make-union non-mergeable-types))
+
+;; NB 'type' may be a Union type, of course.
+(defn make-collection [type]
+  (Collection. type))
 
 ;; # Helpers
 

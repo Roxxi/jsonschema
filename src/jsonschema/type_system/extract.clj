@@ -1,5 +1,6 @@
 (ns jsonschema.type-system.extract
   (:require [jsonschema.type-system.types :refer :all]
+            [jsonschema.type-system.merge-common :refer [turn-into-a-collection]]
             [jsonschema.type-system.merge :refer [merge-reducer]]
             [jsonschema.type-system.simplify :refer [simplify-reducer]]
             [roxxi.utils.collections :refer :all]
@@ -71,7 +72,8 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
      (str? pred x) (make-str x),
      (document? pred x) (make-document
                          (project-map x :value-xform #(extract extractor %))),
-     (collection? pred x) (make-collection (map #(extract extractor %) x))
+     (collection? pred x) (turn-into-a-collection merge-reducer
+                                                  (map #(extract extractor %) x))
      :else (throw
             (RuntimeException.
              (str "Do not know how to merge-extract a type from " x " of class " (class x)))))))
@@ -88,7 +90,8 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
      (str? pred x) (make-str x),
      (document? pred x) (make-document
                          (project-map x :value-xform #(extract extractor %))),
-     (collection? pred x) (make-collection (map #(extract extractor %) x))
+     (collection? pred x) (turn-into-a-collection simplify-reducer
+                                                  (map #(extract extractor %) x))
      :else (throw
             (RuntimeException.
              (str "Do not know how to simplify-extract a type from " x " of class " (class x)))))))
@@ -109,3 +112,9 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
 
 (defn extract-type [clojure-data-structure]
   (extract (merging-clojure-type-extractor) clojure-data-structure))
+
+(defn extract-type-merging [clojure-data-structure]
+  (extract (merging-clojure-type-extractor) clojure-data-structure))
+
+(defn extract-type-simplifying [clojure-data-structure]
+  (extract (simplifying-clojure-type-extractor) clojure-data-structure))
