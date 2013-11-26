@@ -37,17 +37,6 @@
 (defn incongruent? [d1 d2]
   (not (congruent? d1 d2)))
 
-;; There are two outcomes when you try to merge types:
-;;   1) The merge result has the same type as one or both input types
-;;      (possibly with different metadata)
-;;   2) The merge result has a different type than both input types
-;;      (and it will necessarily be a Union type).
-;; Two things are `compatible` if merging them looks like case 1.
-;; Otherwise, they are not compatible, and merging them will result in a
-;; Union type.
-;;
-;; More generally, the question "Are a and b compatible?" can be interpreted
-;; as "Do a and b look alike?"
 (defn- type-dispatcher [t1 t2 merge-notion]
   (cond
    (or (union-type? t1) (union-type? t2))
@@ -61,7 +50,19 @@
    (and (satisfies? Typeable t1) (satisfies? Typeable t2))
    :non-mergeable-types))
 
-(defmulti compatible? type-dispatcher)
+(defmulti compatible?
+  "There are two outcomes when you try to merge types:
+ 1) The merge result has the same type as one or both input types
+    (possibly with different Scalar metadata)
+ 2) The merge result has a different type than both input types
+    (and it will necessarily be a Union type).
+Two things are `compatible` if merging them looks like case 1.
+Otherwise, they are not compatible, and merging them will result in a
+Union type.
+
+More generally, the question 'Are a and b compatible?' can be interpreted
+as 'Under a particular notion of merging types, do a and b look alike?'"
+  #^{:private true} type-dispatcher)
 
 (defmethod compatible? :scalar [t1 t2 merge-notion]
   (same-type? t1 t2))
@@ -114,12 +115,17 @@
   (compatible? t1 t2 :simplify))
 
 
-;; Assumes the notion of compatibility is transitive... so if you add
-;; another merge-notion, make sure your new notion of compatibility
-;; is transitive.
+
 (defn reduce-compatible-types [types compatible? merge-two-compatible-things]
   "If input is [a1 a2 b1 c1 a3 c2], then output
-is [merged(a1 a2 a3) b1 merged(c1 c2)]"
+is [merged(a1 a2 a3) b1 merged(c1 c2)]
+
+Note: this function assumes that compatibility is transitive, i.e.
+              (and (compatible? a b)
+                   (compatible? b c))
+      implies (compatible? a c),
+so if you add another merge-notion, make sure your new notion of
+compatibility is transitive!"
   (reduce (fn [merged-types type]
             ;; if it's mergeable with something ...
             (if (some #(compatible? type %) merged-types)
@@ -133,7 +139,6 @@ is [merged(a1 a2 a3) b1 merged(c1 c2)]"
               (conj merged-types type)))
           []
           types))
-
 
 ;; # Unions and Collections helpers
 
@@ -150,8 +155,9 @@ is [merged(a1 a2 a3) b1 merged(c1 c2)]"
                           unions)]
     (union non-unions flattened-unions)))
 
-
 (defn turn-into-a-union [type-reducer types]
+  "If you need to combine a Union with other types (even other Unions),
+this has the logic to do that sensibly."
   (if (some #(union-type? %) types)
     ;; This will recurse until all nested unions are unflattened.
     (turn-into-a-union type-reducer (flatten-nested-unions types))
@@ -165,6 +171,9 @@ is [merged(a1 a2 a3) b1 merged(c1 c2)]"
   (turn-into-a-union type-reducer types))
 
 (defn turn-into-a-collection [type-reducer types]
+  "If you have a (possibly empty) seq of (possibly compatible/reducible) types
+that you want to turn into a Collection, this has the logic to do that
+sensibly."
   (let [unique-types (type-reducer types)]
     (make-collection
      (cond

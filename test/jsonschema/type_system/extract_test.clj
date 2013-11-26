@@ -2,17 +2,27 @@
   (:use clojure.test
         clojure.pprint
         jsonschema.type-system.types
-        jsonschema.type-system.extract
-        cheshire.core))
+        cheshire.core)
+  (:require [jsonschema.type-system.extract
+             :refer
+             [extract-type-merging
+              extract-type-simplifying
+              special-date?
+              clojure-predicator
+              special?
+              null?
+              bool?
+              int?
+              real?
+              str?
+              document?
+              collection?]]))
 
 (deftest special-predicate-tests
   (testing "Testing the special predicates"
     (is (special-date? "date(111222333)"))
     (is (not (special-date? "id(111222333)")))
-    (is (not (special-date? "death(111222333)")))
-    (is (not (special-id? "id(19123812039)")))
-    (is (not (special-id? "date(19123812039)")))
-    (is (not (special-id? "blah blah blah")))))
+    (is (not (special-date? "death(111222333)")))))
 
 (def predy (clojure-predicator))
 
@@ -34,7 +44,6 @@
     (p-is-not null? 5)
     (p-is special?  "date(111222333)")
     (p-is-not special?  "I'm not special")
-    (p-is-not special? "id(111222333)" "It's special, it shouldn't be a string.")
     (p-is-not str? "date(111222333)" "It's special, it shouldn't be a string.")
     (p-is str? "hello!")
     (p-is str? "date(")
@@ -46,13 +55,16 @@
     (p-is real? 1.123456789012345678901234567890)
     (p-is-not int? "5")
     (p-is-not int? nil)
-    (p-is-not real? "5")
+    (p-is-not real? "5.0")
     (p-is-not real? nil)
     (p-is bool? true)
     (p-is bool? false)
     (p-is-not bool? nil)
     (p-is-not bool? 0)
+    (p-is-not bool? 1.0)
     (p-is-not bool? [])
+    (p-is-not bool? {})
+    (p-is-not bool? {:a 1})
     (p-is-not document? [])
     (p-is-not document? [5 :a])
     (p-is-not document? [:a :a])
@@ -99,17 +111,15 @@
     (p-is collection? [ [1 "str" nil] [1 "str" nil] [1 "str" nil] ])
     (p-is collection? [ ["string" "string" "string" "string"] [8 9 2] [nil nil] ])
     (p-is collection? [[1 2 3] [4 5 6 7] [8 9 2]])
-    (p-is collection? ["a" 1 nil])))
+    (p-is collection? ["a" 1 nil])
+    (p-is collection? [{:a 1}])))
 
-
-
-(def extractor (merging-clojure-type-extractor))
 
 (defmacro t-is
   ([x val]
-     `(is (= (extract extractor ~x) ~val)))
+     `(is (= (extract-type-merging ~x) ~val)))
   ([x val comment]
-     `(is (= (extract extractor ~x) ~val) ~comment)))
+     `(is (= (extract-type-merging ~x) ~val) ~comment)))
 
 (def complex-doc
   {"a" 5,
@@ -125,45 +135,95 @@
 
 (def complex-doc-type
 #jsonschema.type_system.types.Document{
-  :properties #{"a" "b" "c" "d"},
-  :map {"a" #jsonschema.type_system.types.Int{:min 5, :max 5},
-        "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}]}},
-        "c" #jsonschema.type_system.types.Document{:properties #{"a" "b" "c" "d"}, :map {"a" #jsonschema.type_system.types.Int{:min 5, :max 5}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}]}}, "c" #jsonschema.type_system.types.Date{:format nil}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}},
-        "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Document{:properties #{"a" "b" "c" "d"}, :map {"a" #jsonschema.type_system.types.Int{:min 5, :max 5}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}]}}, "c" #jsonschema.type_system.types.Date{:format nil}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}} #jsonschema.type_system.types.Int{:min 10, :max 10} #jsonschema.type_system.types.Str{:min 1, :max 1}]}}}})
+ :properties #{"a" "b" "c" "d"},
+ :map {"a" #jsonschema.type_system.types.Int{:min 5, :max 5},
+       "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}}}},
+       "c" #jsonschema.type_system.types.Document{:properties #{"a" "b" "c" "d"}, :map {"a" #jsonschema.type_system.types.Int{:min 5, :max 5}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}}}}, "c" #jsonschema.type_system.types.Date{:format nil}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}},
+       "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Document{:properties #{"a" "b" "c" "d"}, :map {"a" #jsonschema.type_system.types.Int{:min 5, :max 5}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}}}}, "c" #jsonschema.type_system.types.Date{:format nil}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}} #jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 10, :max 10}}}}}})
 
 (def complex-doc-keys-type
 #jsonschema.type_system.types.Document{
-  :properties #{:a :c :b :d},
-  :map {:a #jsonschema.type_system.types.Int{:min 5, :max 5},
-        :c #jsonschema.type_system.types.Document{:properties #{:a :c :b :d}, :map {:a #jsonschema.type_system.types.Int{:min 5, :max 5}, :c #jsonschema.type_system.types.Date{:format nil}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}]}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}},
-        :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}]}},
-        :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Document{:properties #{:a :c :b :d}, :map {:a #jsonschema.type_system.types.Int{:min 5, :max 5}, :c #jsonschema.type_system.types.Date{:format nil}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}]}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}} #jsonschema.type_system.types.Int{:min 10, :max 10} #jsonschema.type_system.types.Str{:min 1, :max 1}]}}}})
+ :properties #{:a :c :b :d},
+ :map {:a #jsonschema.type_system.types.Int{:min 5, :max 5},
+       :c #jsonschema.type_system.types.Document{:properties #{:a :c :b :d}, :map {:a #jsonschema.type_system.types.Int{:min 5, :max 5}, :c #jsonschema.type_system.types.Date{:format nil}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}}}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}},
+       :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}}}},
+       :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Document{:properties #{:a :c :b :d}, :map {:a #jsonschema.type_system.types.Int{:min 5, :max 5}, :c #jsonschema.type_system.types.Date{:format nil}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}}}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}} #jsonschema.type_system.types.Int{:min 10, :max 10}}}}}})
 
 ;; TODO add tests here for all the type tests above
 (deftest clojure-extractor-test
   (testing "Testing the MergingClojureTypeExtractor"
     (t-is nil (make-null))
     (t-is 5 (make-int 5 5))
+    (t-is 5.0 (make-real 5.0 5.0))
     (t-is "hello" (make-str 5 5))
     (t-is "date(nil)" (make-date nil))
     (t-is false (make-bool))
     (t-is true (make-bool))
-    (is (thrown? RuntimeException (extract extractor :hello))
+    (is (thrown? RuntimeException (extract-type-merging :hello))
         "It shouldn't know what to do with a keyword")
     (t-is [1 2 3] #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}})
-    (t-is [1 2 "a"] #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 2}]}})
-    (t-is [1 2 "a" 12 "b"] #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of [#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}]}})
+    (t-is [ [] [] ] #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of :nothing}})
+    (t-is [1 2 "a"] #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 1, :max 2} #jsonschema.type_system.types.Str{:min 1, :max 1}}}})
+    (t-is [1 2 "a" 12 "bb"] #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 2} #jsonschema.type_system.types.Int{:min 1, :max 12}}}})
     (t-is {:a 1 :b 2 :c true :d nil :e 1.0 :f "string"} #jsonschema.type_system.types.Document{:properties #{:a :c :b :f :d :e}, :map {:a #jsonschema.type_system.types.Int{:min 1, :max 1}, :c #jsonschema.type_system.types.Bool{}, :b #jsonschema.type_system.types.Int{:min 2, :max 2}, :f #jsonschema.type_system.types.Str{:min 6, :max 6}, :d #jsonschema.type_system.types.Null{}, :e #jsonschema.type_system.types.Real{:min 1.0, :max 1.0}}})
     (t-is complex-doc complex-doc-type)
-    (t-is complex-doc-keys complex-doc-keys-type)
-    ))
+    (t-is complex-doc-keys complex-doc-keys-type)))
 
 (deftest types-4-tweets
   (testing
       "Generating types for tweets in tweets.js
        This isn't really a test. It's for documentation"
     (let [result
-          (let [parsed-js (parse-string (slurp "test/jsonschema/type_system/tweets.js"))
-                extractor (merging-clojure-type-extractor)]
-            (map #(extract extractor %) parsed-js))]
+          (let [parsed-js (parse-string (slurp "test/jsonschema/type_system/tweets.js"))]
+            (map #(extract-type-merging %) parsed-js))]
       (is (coll? result)))))
+
+;; # Tests from Matt
+
+(deftest merge-vs-simplify
+  (testing "Testing the differences between merge and simplify with"
+    (testing "incongruent documents"
+      (is (= (extract-type-merging [{:a 1} {:a 10 :b 2}])
+             #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Document{:properties #{:a}, :map {:a #jsonschema.type_system.types.Int{:min 1, :max 1}}} #jsonschema.type_system.types.Document{:properties #{:a :b}, :map {:a #jsonschema.type_system.types.Int{:min 10, :max 10}, :b #jsonschema.type_system.types.Int{:min 2, :max 2}}}}}}))
+      (is (= (extract-type-simplifying [{:a 1} {:a 10 :b 2}])
+             #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Document{:properties #{:a :b}, :map {:b #jsonschema.type_system.types.Int{:min 2, :max 2}, :a #jsonschema.type_system.types.Int{:min 1, :max 10}}}})))
+
+    (testing "empty collections"
+      (is (= (extract-type-merging [ [] [1] ])
+             #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of :nothing} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 1}}}}}))
+      (is (= (extract-type-simplifying [ [] [1] ])
+             #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 1}}})))
+
+    (testing "non-compatible nested collections"
+      (testing "test 1"
+        (is (= (extract-type-merging [ [1] ["a"] [2 "asdf"] [24] ["aa"] ])
+               #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 24}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Str{:min 1, :max 2}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 2, :max 2} #jsonschema.type_system.types.Str{:min 4, :max 4}}}}}}}))
+        (is (= (extract-type-simplifying [ [1] ["a"] [2 "asdf"] [24] ["aa"] ])
+               #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 4} #jsonschema.type_system.types.Int{:min 1, :max 24}}}}})))
+
+      (testing "test 2"
+        (is (= (extract-type-merging [[1 "a"] [2 true]])
+               #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Int{:min 2, :max 2}}}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 1, :max 1} #jsonschema.type_system.types.Str{:min 1, :max 1}}}}}}}))
+        (is (= (extract-type-simplifying [[1 "a"] [2 true]])
+               #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Int{:min 1, :max 2} #jsonschema.type_system.types.Str{:min 1, :max 1}}}}})))
+
+      (testing "test 3"
+        (is (= (extract-type-merging [[1 true "a"] [2 false]])
+               #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Int{:min 2, :max 2}}}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Int{:min 1, :max 1} #jsonschema.type_system.types.Str{:min 1, :max 1}}}}}}}))
+        (is (= (extract-type-simplifying [[1 true "a"] [2 false]])
+               #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Int{:min 1, :max 2} #jsonschema.type_system.types.Str{:min 1, :max 1}}}}}))))))
+
+
+(deftest merge-and-simplify-behave-the-same
+  (testing "Testing that merging and simplifying behave the same with"
+    (testing "collections and scalars"
+      (is (= (extract-type-merging [ [1 2 3] 4])
+             (extract-type-simplifying [ [1 2 3] 4])))
+      (is (= (extract-type-merging [ [1 2 3] 4])
+             #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 4, :max 4} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}}})))
+
+    (testing "congruent dictionaries"
+      (is (= (extract-type-merging [{:a 1} {:a "str"}])
+             (extract-type-simplifying [{:a 1} {:a "str"}])))
+      (is (= (extract-type-merging [{:a 1} {:a "str"}])
+             #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Document{:properties #{:a}, :map {:a #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 1, :max 1} #jsonschema.type_system.types.Str{:min 3, :max 3}}}}}})))))

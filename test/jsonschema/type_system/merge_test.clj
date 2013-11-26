@@ -9,12 +9,12 @@
             [roxxi.utils.collections :refer [extract-map]]))
 
 ;; # Important note
-;; The code commented out at various points below is code used to generate data for unit tests.
-;; Code in this commented out region is used to generate the data for validation
-;; By running these commands in the repl, you can generate and regenerate the unit tests.
-;; This does require that you manually verify that the generated data is correct
-;; but it simplifies updating all the code by hand.
-
+;; The code commented out at various points below is code used to generate data
+;; for unit tests. Code in this commented out region is used to generate the
+;; data for validation. By running these commands in the repl, you can generate
+;; and regenerate the unit tests. This does require that you manually verify
+;; that the generated data is correct but it simplifies updating all the code
+;; by hand.
 
 ;; # Generic Helpers for all tests
 
@@ -479,12 +479,12 @@
           reversed-types (reverse some-types)
           merged-type (apply merge-types some-types)
           reverse-merged-type (apply merge-types reversed-types)]
-      (is (and (= merged-type reverse-merged-type)
-               (= merged-type
-                  #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 5, :max 42}
-                                                                  #jsonschema.type_system.types.Str{:min 2, :max 5}
-                                                                  #jsonschema.type_system.types.Document{:properties #{:a}, :map {:a #jsonschema.type_system.types.Str{:min 5, :max 5}}}
-                                                                  #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 4, :max 9}}}})))))
+      (is (= merged-type reverse-merged-type))
+      (is (= merged-type
+             #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 5, :max 42}
+                                                             #jsonschema.type_system.types.Str{:min 2, :max 5}
+                                                             #jsonschema.type_system.types.Document{:properties #{:a}, :map {:a #jsonschema.type_system.types.Str{:min 5, :max 5}}}
+                                                             #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 4, :max 9}}}}))))
 
   (testing "Union - Union"
     (testing "If we attempt to merge two union types,
@@ -525,95 +525,61 @@
                                                                    #jsonschema.type_system.types.Document{:properties #{:a :c}, :map {:a #jsonschema.type_system.types.Int{:min 10, :max 10}, :c #jsonschema.type_system.types.Int{:min 10, :max 10}}}}})))))
 
 
-;;;;;;;;;;;;;;;;;;;;
-;; sanity tests from matt
 
-;; (defn init-scalars []
-;;   (def s1 (make-int 20 40))
-;;   (def s2 (make-int 21 41))
-;;   (def s3 (make-int 25 30))
-;;   (def s4 (make-int 15 20)))
-;; ;; (make-union-with a b)
-;; ;; #jsonschema.type_system.types.Union{:union-of (#jsonschema.type_system.types.Int{:min 20, :max 41})}
-;; ;; (make-union-with a c)
-;; ;; #jsonschema.type_system.types.Union{:union-of (#jsonschema.type_system.types.Int{:min 20, :max 40})}
-;; ;; (make-union-with a d)
-;; ;; #jsonschema.type_system.types.Union{:union-of (#jsonschema.type_system.types.Int{:min 15, :max 40})}
-;; ;; (make-union-with a b c)
-;; ;; #jsonschema.type_system.types.Union{:union-of (#jsonschema.type_system.types.Int{:min 20, :max 41})}
-;; ;; (make-union-with a b c d)
-;; ;; #jsonschema.type_system.types.Union{:union-of (#jsonschema.type_system.types.Int{:min 15, :max 41})}
+;; # Scalar metadata tests
 
+(deftest sanity-scalar-tests
+  (testing "Scalar-scalar merging handles metadata properly."
+    (let [s1 (make-int 20 40)
+          s2 (make-int 21 41)
+          s3 (make-int 25 30)
+          s4 (make-int 15 20)]
+      (merged-is s1 s2 #jsonschema.type_system.types.Int{:min 20, :max 41})
+      (merged-is s1 s3 #jsonschema.type_system.types.Int{:min 20, :max 40})
+      (merged-is s1 s4 #jsonschema.type_system.types.Int{:min 15, :max 40})
+      (merged-is s3 s4 #jsonschema.type_system.types.Int{:min 15, :max 30})
+      (= (merge-types s1 s2 s3)
+         #jsonschema.type_system.types.Int{:min 20, :max 41})
+      (= (merge-types s1 s2 s3 s4)
+         #jsonschema.type_system.types.Int{:min 15, :max 41}))))
 
-;; (defn init-docs []
-;;   (def d1 (extract-type {:a "2c"}))
-;;   (def d2 (extract-type {:a "4chs"}))
-;;   (def d3 (extract-type {:a [23]}))
-;;   (def d4 (extract-type {:a [24]})))
-;; ;; (merge-document-document d1 d2)
-;; ;; #jsonschema.type_system.types.Document{:properties #{:a}, :map {:a #jsonschema.type_system.types.Str{:min 2, :max 4}}}
-;; ;; (merge-document-document d3 d4)
-;; ;; XXX
+(deftest sanity-document-tests
+  (testing "Scalar metadata gets merged properly within documents."
+    (let [d1 (extract-type {:a "2c"})
+          d2 (extract-type {:a "4chs"})
+          d3 (extract-type {:a [23]})
+          d4 (extract-type {:a [24]})]
+      (merged-is d1 d2
+                 #jsonschema.type_system.types.Document{:properties #{:a}, :map {:a #jsonschema.type_system.types.Str{:min 2, :max 4}}})
+      (merged-is d3 d4
+                 #jsonschema.type_system.types.Document{:properties #{:a}, :map {:a #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 23, :max 24}}}}))))
 
+(deftest sanity-collection-tests
+  (testing "Scalar metadata gets merged properly across collections."
+    (let [c1 (extract-type [1])
+          c2 (extract-type [1 2])
+          c3 (extract-type [1 "a"])
+          c4 (extract-type [2 "asdf"])]
+      (merged-is c1 c2
+                 #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 2}})
+      (merged-is c3 c4
+                 #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 4} #jsonschema.type_system.types.Int{:min 1, :max 2}}}})))
 
-;; (defn init-colls []
-;;   (def c1 (extract-type [1]))
-;;   (def c2 (extract-type [1 2]))
-;;   (def c3 (extract-type [1 "a"]))
-;;   (def c4 (extract-type [2 "asdf"])))
-;; ;; (merge-compatible? c1 c2)
-;; ;; (merge-compatible? c3 c4)
+  (testing "If a scalar type appears in a collection, then its metadata
+should NOT just get merged into the collection. No heterogeneous merging for
+you."
+    (merged-is (make-collection (make-int 4))
+               (make-int 4)
+               #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 4, :max 4} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 4, :max 4}}}})))
 
-;; (defn init-unions []
-;;   (def u1 (extract-type [1 "a"]))
-;;   (def u2 (extract-type [2 "ab"])))
-;; ;; (merge-two-merge-compatible-things u1 u2)
-
-
-;;;;;;;;;;;;;;;;;;;;
-;; more interesting tests from matt
-
-;; (merge-compatible? (make-union-with (make-str "foo") (make-int 3))
-;;                  (make-str "foobar"))
-;; true
-;; (merge-compatible? (make-collection-with (make-int 4)) (make-int 4))
-;; false
-
-
-
-;; (merge-two-types (extract-type {:a 1}) (extract-type {:a "hello"}))
-;; (make-document {:a (make-union-with (make-int 1) (make-str "hello"))})
-;; (merge-two-types (extract-type {:a 1}) (extract-type {:a "hello", :b 1}))
-;; (make-union-with (make-document {:a (make-int 1)})
-;;                  (make-document {:a (make-str "hello") :b (make-int 1)}))
-;; (simplify-two-types (extract-type {:a 1}) (extract-type {:a "hello", :b 1}))
-;; (make-document {:a (make-union-with (make-int 1) (make-str "hello")) :b (make-int 1)})
-
-;; # Corner cases to use
-
-;; (extract-type [ [] [] ]) => should be coll(coll(nothing))
-
-;; # Differences between merge and simplify
-;; (merge {:a 1} {:a 1 :b 2}) => union(dict(:a int), dict(:a int, :b int))
-;; (simplify {:a 1} {:a 1 :b 2}) => dict(:a int, :b int)
-;;
-;; (merge [] [1]) => union(coll(:nothing), coll(int))
-;; (simplify [] [1]) => coll(int)
-
-
-;; (merge OR simplify [1 2 3] 4) => union(int, coll(int))
-;; (merge OR simplify {:a 1} {:a "str"}) => dict(:a union(int,str))
-
-
-;; (merge [ [1] ["a"] [2 "asdf"] ]) => coll(union(coll(int),
-;;                                                coll(str),
-;;                                                coll(union(int,str))))
-;; (simplify [ [1] ["a"] [2 "asdf"] ]) => coll(coll(union(int,str)))
-
-;; (merge [[1, "a"] [1, true]]) => coll(union(coll(int,str)
-;;                                            coll(int,bool)))
-;; (simplify [[1, "a"] [1, true]]) => coll(coll(union(int,str,bool)))
-
-;; (merge [[1, true, "a"] [1, false]]) => coll(union(coll(int,bool,str)
-;;                                                   coll(int,bool)))
-;; (simplify [[1, true, "a"] [1, false]]) => coll(coll(union(int,bool,str)))
+(deftest sanity-union-tests
+  (testing "Scalar metadata gets merged properly across unions."
+    (let [u1 (make-union-with (make-int 1) (make-str "a"))
+          u2 (make-union-with (make-int 2) (make-str "ab"))]
+      (merged-is u1 u2
+                 #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 1, :max 2} #jsonschema.type_system.types.Str{:min 1, :max 2}}})))
+  (testing "If a scalar type appears in a union, then its metadata should just
+get merged into the union. Heterogeneous merging, what up!"
+    (merged-is (make-union-with (make-str "foo") (make-int -1))
+               (make-str "foobar")
+               #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min -1, :max -1} #jsonschema.type_system.types.Str{:min 3, :max 6}}})))

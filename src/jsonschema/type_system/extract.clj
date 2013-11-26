@@ -84,10 +84,10 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
   (ClojureTypePredicator.))
 
 (defn merging-clojure-type-extractor []
-  (ClojureTypeExtractor. (clojure-predicator)))
+  (ClojureTypeExtractor. (clojure-predicator) merge-reducer))
 
 (defn simplifying-clojure-type-extractor []
-  (ClojureTypeExtractor. (clojure-predicator)))
+  (ClojureTypeExtractor. (clojure-predicator) simplify-reducer))
 
 ;; # Convenience functions
 

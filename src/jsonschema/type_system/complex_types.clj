@@ -38,13 +38,24 @@
 
 ;; # Factory methods
 
+;; Note that these are pure factory functions. They do not perform any
+;; sanitizing logic. e.g. if you call
+;;       (make-union-with (make-int 1 3) (make-int 3 5))
+;;    you will NOT get back
+;;        #jsonschema.type_system.types.Int{:min 1, :max 5}
+;; Instead you will get back exactly what you asked for:
+;;        #jsonschema.type_system.types.Union{:union-of
+;;            #{#jsonschema.type_system.types.Int{:min 1, :max 3}
+;;              #jsonschema.type_system.types.Int{:min 3, :max 5}}
+;; So, be aware of that when you call these functions.
+
 (defn make-document [property-type-map]
   (Document. (set (keys property-type-map))
              property-type-map))
 
 ;; NB the call to 'set' is not to dedup but to make the equality of
 ;;    unions be determined by their contents, regardless of the ORDER
-;;    of their contents.
+;;    of the sequence 'non-mergeable-types'.
 (defn make-union [non-mergeable-types]
   (Union. (set non-mergeable-types)))
 
