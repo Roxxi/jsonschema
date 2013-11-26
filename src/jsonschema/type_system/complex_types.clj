@@ -42,16 +42,17 @@
   (Document. (set (keys property-type-map))
              property-type-map))
 
-;; NB the 'set' is not to dedup but to make the equality of unions be
-;;    determined by their contents, regardless of the ORDER of their
-;;    contents.
+;; NB the call to 'set' is not to dedup but to make the equality of
+;;    unions be determined by their contents, regardless of the ORDER
+;;    of their contents.
 (defn make-union [non-mergeable-types]
   (Union. (set non-mergeable-types)))
 
 (defn make-union-with [& non-mergeable-types]
   (make-union non-mergeable-types))
 
-;; NB 'type' may be a Union type, of course.
+;; NB 'type' may be a simple or complex type (including another collection),
+;;    of course.
 (defn make-collection [type]
   (Collection. type))
 

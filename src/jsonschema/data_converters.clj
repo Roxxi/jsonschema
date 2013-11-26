@@ -6,14 +6,14 @@ to scalar data of another type"
         jsonschema.type-system.types)
   (:require [clojure.math.numeric-tower :as num-tower]))
 
-(defn- ->null [datum]  
+(defn- ->null [datum]
   nil)
 
 (defn- boolean? [datum]
   (or (true? datum) (false? datum)))
 
 (defn- ->bool [datum]
-  (cond (nil? datum) nil        
+  (cond (nil? datum) nil
         datum true
         :else false))
 
@@ -24,7 +24,7 @@ to scalar data of another type"
   (cond
    ;; There are contexts where statistical rounding might be more approriate.
    ;; But for now, we'll go with the poor-man's approach.
-   (number? datum) (num-tower/round datum)       
+   (number? datum) (num-tower/round datum)
    (boolean? datum) (if (->bool datum) 1 0)
    :else (->null datum)))
 
@@ -45,7 +45,7 @@ to scalar data of another type"
    :string ->str
    :date   ->str
    :id     ->str})
-  
+
 (def type=>converter
   (project-map type-desc=>converter
                :key-xform make-scalar))

@@ -1,9 +1,9 @@
 (ns jsonschema.core
   (:use clojure.java.io
-        jsonschema.parser
-        jsonschema.type-system.extract)
+        jsonschema.parser)
   (:require [jsonschema.type-system.merge :as m]
-            [jsonschema.type-system.simplify :as s]))
+            [jsonschema.type-system.simplify :as s]
+            [jsonschema.type-system.extract :refer [extract-type-merging]]))
 
 (def schema-analysis-mapping
   {:comprehensive m/merge-types
@@ -15,7 +15,7 @@
   (with-open [rdr (reader filepath :encoding "UTF-8")]
     (let [lines (line-seq rdr)]
       (reduce schema-merge-fn
-              (map extract-type
+              (map extract-type-merging
                    (parse-json-strings lines
                                        :string-transform line-xform))))))
 
@@ -37,6 +37,3 @@
        (str "Analyzed " @line-number " entries. " (count @failed-lines) " failed.")))
     (clean-up!)
     schema))
-
-
-  

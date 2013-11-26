@@ -60,7 +60,7 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
   (document? [this x] (map? x))
   (collection? [this x] (or (vector? x) (list? x))))
 
-(deftype MergingClojureTypeExtractor [pred]
+(deftype ClojureTypeExtractor [pred type-reducer]
   TypeExtractor
   (extract [extractor x]
     (cond
@@ -72,46 +72,24 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
      (str? pred x) (make-str x),
      (document? pred x) (make-document
                          (project-map x :value-xform #(extract extractor %))),
-     (collection? pred x) (turn-into-a-collection merge-reducer
+     (collection? pred x) (turn-into-a-collection type-reducer
                                                   (map #(extract extractor %) x))
      :else (throw
             (RuntimeException.
-             (str "Do not know how to merge-extract a type from " x " of class " (class x)))))))
-
-(deftype SimplifyingClojureTypeExtractor [pred]
-  TypeExtractor
-  (extract [extractor x]
-    (cond
-     (special? pred x) (make-special x),
-     (null? pred x) (make-null),
-     (bool? pred x) (make-bool),
-     (int? pred x) (make-int x),
-     (real? pred x) (make-real x),
-     (str? pred x) (make-str x),
-     (document? pred x) (make-document
-                         (project-map x :value-xform #(extract extractor %))),
-     (collection? pred x) (turn-into-a-collection simplify-reducer
-                                                  (map #(extract extractor %) x))
-     :else (throw
-            (RuntimeException.
-             (str "Do not know how to simplify-extract a type from " x " of class " (class x)))))))
+             (str "Do not know how to extract a type from " x " of class " (class x)))))))
 
 ;; ## Factory methods.
 
 (defn clojure-predicator []
   (ClojureTypePredicator.))
 
-
 (defn merging-clojure-type-extractor []
-  (MergingClojureTypeExtractor. (clojure-predicator)))
+  (ClojureTypeExtractor. (clojure-predicator)))
 
 (defn simplifying-clojure-type-extractor []
-  (SimplifyingClojureTypeExtractor. (clojure-predicator)))
+  (ClojureTypeExtractor. (clojure-predicator)))
 
 ;; # Convenience functions
-
-(defn extract-type [clojure-data-structure]
-  (extract (merging-clojure-type-extractor) clojure-data-structure))
 
 (defn extract-type-merging [clojure-data-structure]
   (extract (merging-clojure-type-extractor) clojure-data-structure))

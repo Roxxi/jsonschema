@@ -42,10 +42,13 @@
 ;;      (possibly with different metadata)
 ;;   2) The merge result has a different type than both input types
 ;;      (and it will necessarily be a Union type).
-;; Two things are compatible if merging them looks like case 1.
+;; Two things are `compatible` if merging them looks like case 1.
 ;; Otherwise, they are not compatible, and merging them will result in a
 ;; Union type.
-(defn type-dispatcher [t1 t2 merge-notion]
+;;
+;; More generally, the question "Are a and b compatible?" can be interpreted
+;; as "Do a and b look alike?"
+(defn- type-dispatcher [t1 t2 merge-notion]
   (cond
    (or (union-type? t1) (union-type? t2))
    :union
@@ -94,14 +97,7 @@
                                 (:union-of t1)))
                         (:union-of t2))))
     :simplify
-    ;; (if (and (union-type? t1) (union-type? t2))
-    ;;     ;; if both unions, merge them!
-    ;;     true
-    ;;     ;; if only one is a union
-    ;;     (let [[the-union other] (if (union-type? t1) [t1 t2] [t2 t1])]
-    ;;       (some #(compatible? other % merge-notion) (:union-of the-union))))
-    true
-    ))
+    true))
 
 (defmethod compatible? :non-mergeable-types [t1 t2 merge-notion]
   false)
@@ -118,12 +114,12 @@
   (compatible? t1 t2 :simplify))
 
 
-
-;; Assumes the notion of compatibility is transitive...
-;;
-;; if input is [a1 a2 b1 c1 a3 c2]
-;; then output is [merged(a1 a2 a3) b1 merged(c1 c2)]
+;; Assumes the notion of compatibility is transitive... so if you add
+;; another merge-notion, make sure your new notion of compatibility
+;; is transitive.
 (defn reduce-compatible-types [types compatible? merge-two-compatible-things]
+  "If input is [a1 a2 b1 c1 a3 c2], then output
+is [merged(a1 a2 a3) b1 merged(c1 c2)]"
   (reduce (fn [merged-types type]
             ;; if it's mergeable with something ...
             (if (some #(compatible? type %) merged-types)
@@ -144,7 +140,8 @@
 (defn- one? [a-seq]
   (= (count a-seq) 1))
 
-(defn flatten-nested-unions [types]
+(defn- flatten-nested-unions [types]
+  "Only flattens by one level."
   (let [non-unions (remove union-type? types)
         unions (filter union-type? types)
         flattened-unions (reduce
@@ -156,7 +153,7 @@
 
 (defn turn-into-a-union [type-reducer types]
   (if (some #(union-type? %) types)
-    ;; only flattens one level, but this will recurse until they're all unflattened
+    ;; This will recurse until all nested unions are unflattened.
     (turn-into-a-union type-reducer (flatten-nested-unions types))
     (let [unique-types (type-reducer types)]
       (cond
@@ -177,49 +174,3 @@
 
 (defn turn-into-a-collection-with [type-reducer & types]
   (turn-into-a-collection type-reducer types))
-
-
-;; (merge-compatible? (make-union-with (make-str "foo") (make-int 3))
-;;                  (make-str "foobar"))
-;; true
-;; (merge-compatible? (make-collection-with (make-int 4)) (make-int 4))
-;; false
-
-
-
-;; (merge-two-types (extract-type {:a 1}) (extract-type {:a "hello"}))
-;; (make-document {:a (make-union-with (make-int 1) (make-str "hello"))})
-;; (merge-two-types (extract-type {:a 1}) (extract-type {:a "hello", :b 1}))
-;; (make-union-with (make-document {:a (make-int 1)})
-;;                  (make-document {:a (make-str "hello") :b (make-int 1)}))
-;; (simplify-two-types (extract-type {:a 1}) (extract-type {:a "hello", :b 1}))
-;; (make-document {:a (make-union-with (make-int 1) (make-str "hello")) :b (make-int 1)})
-
-;; # Corner cases to use
-
-;; (extract-type [ [] [] ]) => should be coll(coll(nothing))
-
-;; # Differences between merge and simplify
-;; (merge {:a 1} {:a 1 :b 2}) => union(dict(:a int), dict(:a int, :b int))
-;; (simplify {:a 1} {:a 1 :b 2}) => dict(:a int, :b int)
-;;
-;; (merge [] [1]) => union(coll(:nothing), coll(int))
-;; (simplify [] [1]) => coll(int)
-
-
-;; (merge OR simplify [1 2 3] 4) => union(int, coll(int))
-;; (merge OR simplify {:a 1} {:a "str"}) => dict(:a union(int,str))
-
-
-;; (merge [ [1] ["a"] [2 "asdf"] ]) => coll(union(coll(int),
-;;                                                coll(str),
-;;                                                coll(union(int,str))))
-;; (simplify [ [1] ["a"] [2 "asdf"] ]) => coll(coll(union(int,str)))
-
-;; (merge [[1, "a"] [1, true]]) => coll(union(coll(int,str)
-;;                                            coll(int,bool)))
-;; (simplify [[1, "a"] [1, true]]) => coll(coll(union(int,str,bool)))
-
-;; (merge [[1, true, "a"] [1, false]]) => coll(union(coll(int,bool,str)
-;;                                                   coll(int,bool)))
-;; (simplify [[1, true, "a"] [1, false]]) => coll(coll(union(int,bool,str)))

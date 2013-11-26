@@ -1,17 +1,17 @@
 (ns jsonschema.example-data
   (:use clojure.java.io
-        roxxi.utils.print
-        roxxi.utils.collections
         jsonschema.parser
-        jsonschema.type-system.extract
-        jsonschema.type-system.types))
+        jsonschema.type-system.types)
+  (:require [roxxi.utils.collections :refer :all]
+            [roxxi.utils.print :refer [print-expr]]
+            [jsonschema.type-system.extract :refer [extract-type-merging]])
 
 (defprotocol Accumulator
   (append! [this element]
     "For whatever accumulate means here, accumulates this element")
   (values [this]
     "returns whatever values have been accumulated to this point"))
-         
+
 ;; given a schema representing the types for each prop,
 ;; find a row that contains a value representing that type.
 
@@ -53,9 +53,9 @@
 ;; return the board
 
 (defn process-row! [prop=>type=>seen row acc]
-  (let [row-schema (extract-type (parse-json-string row))]
+  (let [row-schema (extract-type-merging (parse-json-string row))]
     (if (accept? prop=>type=>seen row-schema)
-      (do 
+      (do
         (append! acc row)
         (mark-props-seen prop=>type=>seen row-schema))
       prop=>type=>seen)))
@@ -76,11 +76,11 @@
                  (fn [union-or-scalar]
                    (if-let [scalars (:union-of union-or-scalar)]
                      (extract-map scalars :value-extractor (fn [foo] false))
-                     {union-or-scalar false})))))                         
+                     {union-or-scalar false})))))
 
 (defn process-rows [schema rows acc]
   (loop [prop=>type=>seen (schema->prop=>type=>seen schema)
-         rows rows           
+         rows rows
          acc acc
          count 1]
       (if (or (seen-one-of-everything? prop=>type=>seen) (empty? rows))
@@ -104,7 +104,7 @@
     (conj origval newval)
     (set [origval newval])))
 
- 
+
 (defn make-binned-example-acc []
   (let [backing-map (atom {})]
     (reify Accumulator

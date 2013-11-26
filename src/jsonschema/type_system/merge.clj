@@ -128,46 +128,6 @@
   (type-merge (type-merger) t1 t2))
 
 (defn merge-reducer [types]
-  (reduce-compatible-types types merge-compatible? #(merge-two-types % %2)))
-
-
-;; (defn init-scalars []
-;;   (def s1 (make-int 20 40))
-;;   (def s2 (make-int 21 41))
-;;   (def s3 (make-int 25 30))
-;;   (def s4 (make-int 15 20)))
-;; ;; (make-union-with a b)
-;; ;; #jsonschema.type_system.types.Union{:union-of (#jsonschema.type_system.types.Int{:min 20, :max 41})}
-;; ;; (make-union-with a c)
-;; ;; #jsonschema.type_system.types.Union{:union-of (#jsonschema.type_system.types.Int{:min 20, :max 40})}
-;; ;; (make-union-with a d)
-;; ;; #jsonschema.type_system.types.Union{:union-of (#jsonschema.type_system.types.Int{:min 15, :max 40})}
-;; ;; (make-union-with a b c)
-;; ;; #jsonschema.type_system.types.Union{:union-of (#jsonschema.type_system.types.Int{:min 20, :max 41})}
-;; ;; (make-union-with a b c d)
-;; ;; #jsonschema.type_system.types.Union{:union-of (#jsonschema.type_system.types.Int{:min 15, :max 41})}
-
-
-;; (defn init-docs []
-;;   (def d1 (extract-type {:a "2c"}))
-;;   (def d2 (extract-type {:a "4chs"}))
-;;   (def d3 (extract-type {:a [23]}))
-;;   (def d4 (extract-type {:a [24]})))
-;; ;; (merge-document-document d1 d2)
-;; ;; #jsonschema.type_system.types.Document{:properties #{:a}, :map {:a #jsonschema.type_system.types.Str{:min 2, :max 4}}}
-;; ;; (merge-document-document d3 d4)
-;; ;; XXX
-
-
-;; (defn init-colls []
-;;   (def c1 (extract-type [1]))
-;;   (def c2 (extract-type [1 2]))
-;;   (def c3 (extract-type [1 "a"]))
-;;   (def c4 (extract-type [2 "asdf"])))
-;; ;; (merge-compatible? c1 c2)
-;; ;; (merge-compatible? c3 c4)
-
-;; (defn init-unions []
-;;   (def u1 (extract-type [1 "a"]))
-;;   (def u2 (extract-type [2 "ab"])))
-;; ;; (merge-two-merge-compatible-things u1 u2)
+  (reduce-compatible-types types
+                           merge-compatible?
+                           #(merge-two-types % %2)))

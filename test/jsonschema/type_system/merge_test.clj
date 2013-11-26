@@ -1,9 +1,10 @@
 (ns jsonschema.type-system.merge-test
   (:use clojure.test
-        jsonschema.type-system.types
-        jsonschema.type-system.extract
-        jsonschema.type-system.merge)
+        jsonschema.type-system.types)
   (:require [jsonschema.type-system.merge-common :refer [type-merge]]
+            [jsonschema.type-system.merge :refer [type-merger
+                                                  merge-types]]
+            [jsonschema.type-system.extract :refer [extract-type-merging]]
             [roxxi.utils.print :refer [print-expr]]
             [roxxi.utils.collections :refer [extract-map]]))
 
@@ -18,7 +19,7 @@
 ;; # Generic Helpers for all tests
 
 (def merger (type-merger))
-(def extractor (merging-clojure-type-extractor))
+(def extract-type extract-type-merging)
 
 (defmacro merged-is
   ([x1 x2 result]
@@ -37,7 +38,7 @@
 
 (defn generate-type-name=>type [scalar-exprs]
   (extract-map scalar-exprs
-               :xform #(extract extractor %)
+               :xform #(extract-type %)
                :key-extractor #(getType %)))
 
 (def scalar-types
@@ -63,7 +64,7 @@
 
 (defn generate-name=>coll-type [coll-exprs]
   (extract-map coll-exprs
-               :value-extractor #(extract extractor (:coll %))
+               :value-extractor #(extract-type (:coll %))
                :key-extractor #(keyword (:name %))))
 
 (def coll-types
@@ -97,7 +98,7 @@
 ;; ### Generate document types from example expressions
 (defn generate-name=>doc-type [doc-exprs]
   (extract-map doc-exprs
-               :value-extractor #(extract extractor %)
+               :value-extractor #(extract-type %)
                :key-extractor #(keyword (:name %))))
 
 (def empty-document-type #jsonschema.type_system.types.Document{:properties [], :map {}})
@@ -522,3 +523,97 @@
                                                                    #jsonschema.type_system.types.Document{:properties #{:a}, :map {:a #jsonschema.type_system.types.Str{:min 5, :max 5}}}
                                                                    #jsonschema.type_system.types.Document{:properties #{:a :b}, :map {:a #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Str{:min 5, :max 5}}}, :b #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Int{:min 5, :max 5}}}}}
                                                                    #jsonschema.type_system.types.Document{:properties #{:a :c}, :map {:a #jsonschema.type_system.types.Int{:min 10, :max 10}, :c #jsonschema.type_system.types.Int{:min 10, :max 10}}}}})))))
+
+
+;;;;;;;;;;;;;;;;;;;;
+;; sanity tests from matt
+
+;; (defn init-scalars []
+;;   (def s1 (make-int 20 40))
+;;   (def s2 (make-int 21 41))
+;;   (def s3 (make-int 25 30))
+;;   (def s4 (make-int 15 20)))
+;; ;; (make-union-with a b)
+;; ;; #jsonschema.type_system.types.Union{:union-of (#jsonschema.type_system.types.Int{:min 20, :max 41})}
+;; ;; (make-union-with a c)
+;; ;; #jsonschema.type_system.types.Union{:union-of (#jsonschema.type_system.types.Int{:min 20, :max 40})}
+;; ;; (make-union-with a d)
+;; ;; #jsonschema.type_system.types.Union{:union-of (#jsonschema.type_system.types.Int{:min 15, :max 40})}
+;; ;; (make-union-with a b c)
+;; ;; #jsonschema.type_system.types.Union{:union-of (#jsonschema.type_system.types.Int{:min 20, :max 41})}
+;; ;; (make-union-with a b c d)
+;; ;; #jsonschema.type_system.types.Union{:union-of (#jsonschema.type_system.types.Int{:min 15, :max 41})}
+
+
+;; (defn init-docs []
+;;   (def d1 (extract-type {:a "2c"}))
+;;   (def d2 (extract-type {:a "4chs"}))
+;;   (def d3 (extract-type {:a [23]}))
+;;   (def d4 (extract-type {:a [24]})))
+;; ;; (merge-document-document d1 d2)
+;; ;; #jsonschema.type_system.types.Document{:properties #{:a}, :map {:a #jsonschema.type_system.types.Str{:min 2, :max 4}}}
+;; ;; (merge-document-document d3 d4)
+;; ;; XXX
+
+
+;; (defn init-colls []
+;;   (def c1 (extract-type [1]))
+;;   (def c2 (extract-type [1 2]))
+;;   (def c3 (extract-type [1 "a"]))
+;;   (def c4 (extract-type [2 "asdf"])))
+;; ;; (merge-compatible? c1 c2)
+;; ;; (merge-compatible? c3 c4)
+
+;; (defn init-unions []
+;;   (def u1 (extract-type [1 "a"]))
+;;   (def u2 (extract-type [2 "ab"])))
+;; ;; (merge-two-merge-compatible-things u1 u2)
+
+
+;;;;;;;;;;;;;;;;;;;;
+;; more interesting tests from matt
+
+;; (merge-compatible? (make-union-with (make-str "foo") (make-int 3))
+;;                  (make-str "foobar"))
+;; true
+;; (merge-compatible? (make-collection-with (make-int 4)) (make-int 4))
+;; false
+
+
+
+;; (merge-two-types (extract-type {:a 1}) (extract-type {:a "hello"}))
+;; (make-document {:a (make-union-with (make-int 1) (make-str "hello"))})
+;; (merge-two-types (extract-type {:a 1}) (extract-type {:a "hello", :b 1}))
+;; (make-union-with (make-document {:a (make-int 1)})
+;;                  (make-document {:a (make-str "hello") :b (make-int 1)}))
+;; (simplify-two-types (extract-type {:a 1}) (extract-type {:a "hello", :b 1}))
+;; (make-document {:a (make-union-with (make-int 1) (make-str "hello")) :b (make-int 1)})
+
+;; # Corner cases to use
+
+;; (extract-type [ [] [] ]) => should be coll(coll(nothing))
+
+;; # Differences between merge and simplify
+;; (merge {:a 1} {:a 1 :b 2}) => union(dict(:a int), dict(:a int, :b int))
+;; (simplify {:a 1} {:a 1 :b 2}) => dict(:a int, :b int)
+;;
+;; (merge [] [1]) => union(coll(:nothing), coll(int))
+;; (simplify [] [1]) => coll(int)
+
+
+;; (merge OR simplify [1 2 3] 4) => union(int, coll(int))
+;; (merge OR simplify {:a 1} {:a "str"}) => dict(:a union(int,str))
+
+
+;; (merge [ [1] ["a"] [2 "asdf"] ]) => coll(union(coll(int),
+;;                                                coll(str),
+;;                                                coll(union(int,str))))
+;; (simplify [ [1] ["a"] [2 "asdf"] ]) => coll(coll(union(int,str)))
+
+;; (merge [[1, "a"] [1, true]]) => coll(union(coll(int,str)
+;;                                            coll(int,bool)))
+;; (simplify [[1, "a"] [1, true]]) => coll(coll(union(int,str,bool)))
+
+;; (merge [[1, true, "a"] [1, false]]) => coll(union(coll(int,bool,str)
+;;                                                   coll(int,bool)))
+;; (simplify [[1, true, "a"] [1, false]]) => coll(coll(union(int,bool,str)))

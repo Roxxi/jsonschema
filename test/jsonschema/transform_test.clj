@@ -1,10 +1,12 @@
 (ns jsonschema.transform-test
   (:use clojure.test
         roxxi.utils.print
-        jsonschema.transform        
-        jsonschema.type-system.extract)
-  (:require [jsonschema.type-system.simplify :as s]
+        jsonschema.transform)
+  (:require [jsonschema.type-system.extract :refer [extract-type-merging]]
+            [jsonschema.type-system.simplify :as s]
             [jsonschema.type-system.merge :as m]))
+
+(def extract-type extract-type-merging)
 
 (deftest schema-translatability []
   (testing "Ensuring the following schemas are NOT translatable to a
@@ -25,7 +27,7 @@ database table"
            false (extract-type {:p1 "hello" :nested {:n1 "nested"}})
            false (extract-type {:p1 "hello" :coll [nil 5 "hello"]})
            false (s/simplify-types
-                  ;; union on both parameters, where the latter union 
+                  ;; union on both parameters, where the latter union
                   ;; contains two doc types
                   (extract-type {:p1 10 :nested {:n1 5}})
                   (extract-type {:p1 "hello" :nested {:n1 "nested"}}))
@@ -100,11 +102,3 @@ a schema suitable for a Database table"
                                                         :col3 #jsonschema.type_system.types.Scalar{:type :int},
                                                         :col4 #jsonschema.type_system.types.Scalar{:type :bool},
                                                         :col5 #jsonschema.type_system.types.Scalar{:type :null}}}))))
-         
-
-
-
-
-                  
-
-
