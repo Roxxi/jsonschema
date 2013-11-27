@@ -114,31 +114,26 @@ as 'Under a particular notion of merging types, do a and b look alike?'"
 (defn simplify-compatible? [t1 t2]
   (compatible? t1 t2 :simplify))
 
-
-
-(defn reduce-compatible-types [types compatible? merge-two-compatible-things]
+(defn reduce-compatible-types [arbitrary-unmerged-types
+                               compatible?
+                               merge-two-compatible-things]
   "If input is [a1 a2 b1 c1 a3 c2], then output
 is [merged(a1 a2 a3) b1 merged(c1 c2)]
 
 Note: this function assumes that compatibility is transitive, i.e.
-              (and (compatible? a b)
-                   (compatible? b c))
-      implies (compatible? a c),
-so if you add another merge-notion, make sure your new notion of
+        If (compatible? a b) AND (compatible? b c)),
+        then (compatible? a c).
+So if you add another merge-notion, make sure your new notion of
 compatibility is transitive!"
   (reduce (fn [merged-types type]
-            ;; if it's mergeable with something ...
-            (if (some #(compatible? type %) merged-types)
-              ;; ... do the merge
-              (map (fn [merged-type]
-                     (if (compatible? merged-type type)
-                       (merge-two-compatible-things merged-type type)
-                       merged-type))
-                   merged-types)
-              ;; ... otherwise insert it
-              (conj merged-types type)))
+            (let [incompatibles (remove #(compatible? type %) merged-types)
+                  compatibles (filter #(compatible? type %) merged-types)
+                  merged-compatibles (reduce #(merge-two-compatible-things % %2)
+                                             type
+                                             compatibles)]
+              (conj incompatibles merged-compatibles)))
           []
-          types))
+          arbitrary-unmerged-types))
 
 ;; # Unions and Collections helpers
 
