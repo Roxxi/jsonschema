@@ -1,9 +1,9 @@
 (ns jsonschema.data-converters-test
   (:use clojure.test
         clojure.pprint
-        clojure.template ;; for do-template
         jsonschema.data-converters
-        jsonschema.type-system.types))
+        jsonschema.type-system.types)
+  (:require [clojure.template :refer [do-template]]))
 
 (defmacro type-test [type-kw & val-res-pairs]
   `(deftest ~(symbol (str (name type-kw) "-test")) []
@@ -44,22 +44,10 @@
            5.5 5.5
            "hello!" nil)
 
-(type-test :string
+(type-test :str
            nil nil
            true "true"
            false "false"
            5 "5"
            5.5 "5.5"
            "hello!" "hello!")
-
-
-
-
-
-
-
-
-
-
-
-           

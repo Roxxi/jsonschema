@@ -121,7 +121,7 @@
         (str "Do not know how to merge-ranged-scalars of type " type
              "; only know " known-types))))))
 
-;; TODO what does it mean to merge the formats?
+;; XXX TODO what does it mean to merge the formats?
 (defn- merge-formatted-scalars [s1 s2 type]
   (let [known-types #{:date}]
     (if (contains? known-types type)

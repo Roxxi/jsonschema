@@ -40,6 +40,3 @@
 (deftest test-a-big-url []
   (is (= (parse-json-string "{\"a\" : \"https://www.google.com/foo/20712?utm_source=Daily&utm_medium=Email&utm_campaign=23405&utm_content=3/21/2013.2553960&utm_term=New_Car.Image.2.20712\"}")
          {"a" "https://www.google.com/foo/20712?utm_source=Daily&utm_medium=Email&utm_campaign=23405&utm_content=3/21/2013.2553960&utm_term=New_Car.Image.2.20712"})))
-      
-
-

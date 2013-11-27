@@ -1,5 +1,5 @@
 (ns jsonschema.transform
-  "Transformations to apply to schemas"  
+  "Transformations to apply to schemas"
   (:use roxxi.utils.print
         roxxi.utils.collections
         jsonschema.type-system.types))
@@ -26,9 +26,9 @@ to define a database table."
               (every? union-only-contains-scalars? union-properties)))))
 
 
-;; the order here is implicit such that
+;; The order here is implicit such that
 ;; type-rollup[n] can be encompassed by type-rollup[n+1]
-(def type-rollup [:null :bool :int :real :string])
+(def type-rollup [:null :bool :int :real :str])
 
 (defn- negative? [x]
   (< x 0))
@@ -39,9 +39,9 @@ to define a database table."
     (if (or (negative? i1) (negative? i2))
       ;; TODO This is a cop-out, but what else can we do?
       ;; Don't know...
-      (make-scalar :string)
+      (make-str "")
       (if (< i1 i2) type2 type1))))
-      
+
 (defn collapse-union [union-type]
   (reduce genericize-types (:union-of union-type)))
 
@@ -49,7 +49,7 @@ to define a database table."
   (if (scalar-type? scalar-or-union-type)
     scalar-or-union-type
     (collapse-union scalar-or-union-type)))
-  
+
 (defn- document-collapse-unions [document-type]
   "A precondition of calling this function is that
 you've already established you're passing it a document type"
@@ -62,9 +62,3 @@ you've already established you're passing it a document type"
 document schema with no unions based on some arbitrary logic..."
   (and (type-translatable-to-table-schema? type)
        (document-collapse-unions type)))
-    
-
-
-
-
-

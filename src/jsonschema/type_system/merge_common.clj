@@ -120,11 +120,20 @@ as 'Under a particular notion of merging types, do a and b look alike?'"
   "If input is [a1 a2 b1 c1 a3 c2], then output
 is [merged(a1 a2 a3) b1 merged(c1 c2)]
 
-Note: this function assumes that compatibility is transitive, i.e.
-        If (compatible? a b) AND (compatible? b c)),
-        then (compatible? a c).
-So if you add another merge-notion, make sure your new notion of
-compatibility is transitive!"
+This function does not assume that compatibility is transitive, i.e. it
+does not assume that
+     If (compatible? a b) and (compatible? b c)), then (compatible? a c).
+
+This is to accommodate for 'simplify' behavior. If you try to
+reduce-simplify-compatible-types on
+   [[1] [\"a\"] [2 \"b\"]]
+then you should get collection(collection(union(string, integer))).
+
+Yet, we see that even though [1] and [2 \"b\"] are simplify-compatible
+and [\"a\"] and [2 \"b\"] are simplify-compatible,
+it holds that [1] and [\"a\"] are NOT simplify-compatible...
+
+So simplify-compatible? is not transitive!"
   (reduce (fn [merged-types type]
             (let [incompatibles (remove #(compatible? type %) merged-types)
                   compatibles (filter #(compatible? type %) merged-types)

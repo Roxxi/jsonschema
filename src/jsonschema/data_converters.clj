@@ -42,13 +42,13 @@ to scalar data of another type"
    :bool   ->bool
    :int    ->integer
    :real   ->real
-   :string ->str
+   :str    ->str
    :date   ->str
    :id     ->str})
 
 (def type=>converter
   (project-map type-desc=>converter
-               :key-xform make-scalar))
+               :key-xform #(symbol (str "make-" (name %)))))
 
 
 (defn make-type-converters [field-name=>type-or-doc]

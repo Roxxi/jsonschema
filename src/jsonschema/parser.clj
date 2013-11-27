@@ -1,8 +1,8 @@
 (ns jsonschema.parser
   {:author "Alex Bahouth"
    :date "December 2012"}
-  (:require [roxxi.utils.print :refer :all]
-            [roxxi.utils.collections :refer :all])
+  (:require [roxxi.utils.print :refer [print-expr]]
+            [roxxi.utils.collections :refer [project-map]])
   (:require [cheshire.core :refer [parse-string]]))
 
 
@@ -142,4 +142,4 @@
 (defn parse-json-strings [json-strings
                           & {:keys [string-transform]
                              :or {string-transform identity}}]
-  (map #(parse-json-string %  :string-transform string-transform) json-strings))
+  (map #(parse-json-string % :string-transform string-transform) json-strings))

@@ -46,7 +46,7 @@
    (simplify-compatible? (:coll-of c1) (:coll-of c2))
    (make-collection (simplify-two-types (:coll-of c1) (:coll-of c2)))
    :else
-   (make-union [c1 c2])))
+   (make-union-with c1 c2)))
 
 (defn compact-merge-collection-union [c u]
   (merge-collection-union c u :type-reducer simplify-reducer))
