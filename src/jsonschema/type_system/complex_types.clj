@@ -48,6 +48,10 @@
 ;;            #{#jsonschema.type_system.types.Int{:min 1, :max 3}
 ;;              #jsonschema.type_system.types.Int{:min 3, :max 5}}
 ;; So, be aware of that when you call these functions.
+;;
+;; If you want fancy logic-containing factory functions, go to
+;; turn-into-a-union(-with) and turn-into-a-collection(-with)
+;; in jsonschema.type-system.merge-common.
 
 (defn make-document [property-type-map]
   (Document. (set (keys property-type-map))
