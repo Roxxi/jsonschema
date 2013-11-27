@@ -7,6 +7,7 @@
              [type-merge
               make-type-merger
               simplify-compatible?
+              turn-into-a-union-with
               reduce-compatible-types]]))
 
 ;; # Merging of the various types
@@ -43,10 +44,9 @@
    c2
    (empty-collection? c2)
    c1
-   (simplify-compatible? (:coll-of c1) (:coll-of c2))
-   (make-collection (simplify-two-types (:coll-of c1) (:coll-of c2)))
    :else
-   (make-union-with c1 c2)))
+   (make-collection
+    (turn-into-a-union-with simplify-reducer (:coll-of c1) (:coll-of c2)))))
 
 (defn compact-merge-collection-union [c u]
   (merge-collection-union c u :type-reducer simplify-reducer))

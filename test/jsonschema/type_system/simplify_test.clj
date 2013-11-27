@@ -1,11 +1,13 @@
 (ns jsonschema.type-system.simplify-test
   (:use clojure.test
-        roxxi.utils.collections
         jsonschema.type-system.types)
   (:require [jsonschema.type-system.merge-common :as m]
             [jsonschema.type-system.extract :refer [extract-type-simplifying]]
             [jsonschema.type-system.simplify :refer [type-simplifier
-                                                     simplify-types]]))
+                                                     simplify-reducer
+                                                     simplify-types]]
+            [roxxi.utils.collections :refer [extract-map]]
+            [roxxi.utils.print :refer [print-expr]]))
 
 ;; # Generic Helpers for all tests
 ;;
@@ -69,7 +71,7 @@
    :single #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Str{:min 6, :max 6}},
    :mixed #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Str{:min 5, :max 5} #jsonschema.type_system.types.Int{:min 6, :max 6} #jsonschema.type_system.types.Real{:min 10.209, :max 10.209} #jsonschema.type_system.types.Date{:format nil}}}},
    :nested #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 9}}},
-   :mixed-nested #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Null{}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 2, :max 9}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Str{:min 6, :max 6}}}}},
+   :mixed-nested #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Int{:min 2, :max 9} #jsonschema.type_system.types.Str{:min 6, :max 6}}}}},
    :nested-mixed #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Int{:min 1, :max 1} #jsonschema.type_system.types.Str{:min 3, :max 3}}}}},
    :mixed-nested-mixed #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Int{:min 1, :max 1} #jsonschema.type_system.types.Str{:min 3, :max 3} #jsonschema.type_system.types.Date{:format nil}}}}},
    :empty-nested #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 5, :max 5} #jsonschema.type_system.types.Collection{:coll-of :nothing}}}}}})
@@ -375,44 +377,50 @@
                union-with-equal-doc)))
 
 ;; # Collection Tests
-;; # Collection - Scalar / Document / Collection / Union
 
-(def coll-of-str (extract-type ["5" "6"]))
+(deftest canonical-collection-expressions
+  (testing ""
+    (doall
+     (map (fn [coll-expr]
+           (let [name (keyword (:name coll-expr))
+                 verified-type (coll-types name)
+                 calculated-type (extract-type (:coll coll-expr))]
+             (is (= verified-type calculated-type))))
+         collection-expressions))))
+
+;; ## Collection - Scalar / Document / Collection / Union
+
+(def coll-of-str (extract-type ["five" "six"]))
 (def coll-of-num (extract-type [5 6]))
 (def coll-of-null (extract-type [nil nil]))
 (def union-of-coll-of-str-null
-  (make-union-with coll-of-str coll-of-null))
+  (m/turn-into-a-union-with simplify-reducer coll-of-str coll-of-null))
 
-;; (deftest collection-tests
-;;   (testing "Collections follow all the rules of merging
-;;             scalar types when merging with scalars,
-;;             documents, collections, unions types."
-;;     (testing "Scalars"
-;;       (merged-is coll-of-str (scalar-types :null)
-;;                  #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Scalar{:type :null}
-;;                                                            #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :string}}}}))
-;;     (testing "Documents"
-;;       (merged-is coll-of-str a-doc-type
-;;                  #jsonschema.type_system.types.Union{:union-of
-;;                                                #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :string}}
-;;                                                  #jsonschema.type_system.types.Document{:properties [:a :b],
-;;                                                                                   :map {:a #jsonschema.type_system.types.Scalar{:type :int},
-;;                                                                                         :b #jsonschema.type_system.types.Scalar{:type :string}}}}}))
-;;     (testing "Collections"
-;;       (testing "Identity"
-;;         (merged-is coll-of-str coll-of-str
-;;                    #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :string}}))
-;;       (merged-is coll-of-num coll-of-str
-;;                  #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :string}}
-;;                                                            #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :int}}}}))
-;;     (testing "Unions"
-;;       (merged-is coll-of-str union-of-coll-of-str-null
-;;                  #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :string}}
-;;                                                            #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :null}}}})
-;;       (merged-is coll-of-num union-of-coll-of-str-null
-;;                  #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :string}}
-;;                                                            #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :null}}
-;;                                                            #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Scalar{:type :int}}}}))))
+(deftest collection-tests
+  (testing "Collections follow all the rules of merging
+            scalar types when merging with scalars,
+            documents, collections, unions types."
+    (testing "Scalars"
+      (merged-is coll-of-str (scalar-types :null)
+                 #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Str{:min 3, :max 4}}}}))
+
+    (testing "Documents"
+      (merged-is coll-of-str a-doc-type
+                 #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Document{:properties #{:a :b}, :map {:a #jsonschema.type_system.types.Int{:min 1, :max 1}, :b #jsonschema.type_system.types.Str{:min 1, :max 1}}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Str{:min 3, :max 4}}}}))
+
+    (testing "Collections"
+      (testing "Identity"
+        (merged-is coll-of-str coll-of-str
+                   coll-of-str))
+      (testing "Other collections")
+        (merged-is coll-of-num coll-of-str
+                   #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 3, :max 4} #jsonschema.type_system.types.Int{:min 5, :max 6}}}}))
+
+    (testing "Unions"
+      (merged-is coll-of-str union-of-coll-of-str-null
+                 #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Str{:min 3, :max 4}}}})
+      (merged-is coll-of-num union-of-coll-of-str-null
+                 #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Str{:min 3, :max 4} #jsonschema.type_system.types.Int{:min 5, :max 6}}}}))))
 
 
 

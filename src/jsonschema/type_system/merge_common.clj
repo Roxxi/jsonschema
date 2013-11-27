@@ -78,9 +78,7 @@ as 'Under a particular notion of merging types, do a and b look alike?'"
             (and (empty-collection? t1) (empty-collection? t2)) true
             (or (empty-collection? t1) (empty-collection? t2)) false
             :else (compatible? (:coll-of t1) (:coll-of t2) merge-notion))
-    :simplify (cond
-               (or (empty-collection? t1) (empty-collection? t2)) true
-               :else (compatible? (:coll-of t1) (:coll-of t2) merge-notion))))
+    :simplify true))
 
 (defmethod compatible? :union [t1 t2 merge-notion]
   (condp = merge-notion

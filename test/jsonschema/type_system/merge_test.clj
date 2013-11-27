@@ -406,6 +406,17 @@
                union-with-equal-doc)))
 
 ;; # Collection Tests
+
+(deftest canonical-collection-expressions
+  (testing ""
+    (doall
+     (map (fn [coll-expr]
+           (let [name (keyword (:name coll-expr))
+                 verified-type (coll-types name)
+                 calculated-type (extract-type (:coll coll-expr))]
+             (is (= verified-type calculated-type))))
+         collection-expressions))))
+
 ;; ## Collection - Scalar / Document / Collection / Union
 
 (def coll-of-str (extract-type ["5" "6"]))

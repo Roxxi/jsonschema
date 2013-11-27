@@ -211,7 +211,13 @@
         (is (= (extract-type-merging [[1 true "a"] [2 false]])
                #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Int{:min 2, :max 2}}}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Int{:min 1, :max 1} #jsonschema.type_system.types.Str{:min 1, :max 1}}}}}}}))
         (is (= (extract-type-simplifying [[1 true "a"] [2 false]])
-               #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Int{:min 1, :max 2} #jsonschema.type_system.types.Str{:min 1, :max 1}}}}}))))))
+               #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Int{:min 1, :max 2} #jsonschema.type_system.types.Str{:min 1, :max 1}}}}})))
+
+      (testing "test 4"
+        (is (= (extract-type-merging [[1] ["asdf"]])
+               #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Str{:min 4, :max 4}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 1}}}}}))
+        (is (= (extract-type-simplifying [[1] ["asdf"]])
+               #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 1, :max 1} #jsonschema.type_system.types.Str{:min 4, :max 4}}}}}))))))
 
 
 (deftest merge-and-simplify-behave-the-same
