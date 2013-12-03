@@ -29,7 +29,7 @@
   (make-union-with s c))
 
 (defn merge-scalar-union [s u & {:keys [type-reducer]
-                                    :or {type-reducer merge-reducer}}]
+                                 :or {type-reducer merge-reducer}}]
   (turn-into-a-union-with type-reducer s u))
 
 ;; ## Documents
@@ -41,7 +41,6 @@
 ;; applying the function provided as the first arguement to `merge-with`
 ;; to the values _v1, v2, v3, ..._ corresponding  to key _k_ in maps
 ;; _m1, m2, m3, ..._, respectively.
-;;
 (defn merge-document-document [d1 d2]
   (if (incongruent? d1 d2)
     (make-union-with d1 d2)
@@ -51,7 +50,7 @@
   (make-union-with d c))
 
 (defn merge-document-union [d u & {:keys [type-reducer]
-                                    :or {type-reducer merge-reducer}}]
+                                   :or {type-reducer merge-reducer}}]
   (turn-into-a-union-with type-reducer d u))
 
 ;; ## Collections
@@ -89,10 +88,10 @@
   (merge-collection-union c u))
 
 (defn merge-union-union [u1 u2 & {:keys [type-reducer]
-                                     :or {type-reducer merge-reducer}}]
+                                  :or {type-reducer merge-reducer}}]
   (turn-into-a-union-with type-reducer u1 u2))
 
-;; # The money
+;; # Putting it all together, and making it extensible...
 
 (def type*type=>merge-fn
   {:scalar {:scalar merge-scalar-scalar
@@ -115,14 +114,14 @@
 (defn extend-merge-fn-mappings [merge-fn-map [type1 type2 merge-fn]]
   (assoc-in merge-fn-map [type1 type2] merge-fn))
 
-(defn merge-types [& types]
-  (let [merger (type-merger)]
-    (reduce #(type-merge merger % %2) types)))
+;; # The money
 
 (defn type-merger []
   (make-type-merger type*type=>merge-fn))
 
-
+(defn merge-types [& types]
+  (let [merger (type-merger)]
+    (reduce #(type-merge merger % %2) types)))
 
 (defn merge-two-types [t1 t2]
   (type-merge (type-merger) t1 t2))

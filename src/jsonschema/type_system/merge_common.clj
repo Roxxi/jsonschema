@@ -6,6 +6,10 @@
 
 ;; # Core abstraction of merging types
 
+(defprotocol TypeMerger
+  "Merges two types"
+  (type-merge [_ type1 type2]))
+
 (defn- type-type [type]
   "Returns `:scalar` if type is any kind of scalar. When we add custom types,
   we can derive the set of scalar types dynamically."
@@ -15,10 +19,6 @@
         (#{:union} type-sigil)
         (and (#{:int :real :str :null :bool :date} type-sigil)
              :scalar))))
-
-(defprotocol TypeMerger
-  "Merges two types"
-  (type-merge [_ type1 type2]))
 
 (deftype TypeMergerImpl [type*type=>merge-fn]
   TypeMerger
@@ -36,6 +36,8 @@
 
 (defn incongruent? [d1 d2]
   (not (congruent? d1 d2)))
+
+;; # Generic type-compatibility
 
 (defn- type-dispatcher [t1 t2 merge-notion]
   (cond
@@ -112,6 +114,8 @@ as 'Under a particular notion of merging types, do a and b look alike?'"
 (defn simplify-compatible? [t1 t2]
   (compatible? t1 t2 :simplify))
 
+;; # Generic type-reducer
+
 (defn reduce-compatible-types [arbitrary-unmerged-types
                                compatible?
                                merge-two-compatible-things]
@@ -121,6 +125,7 @@ is [merged(a1 a2 a3) b1 merged(c1 c2)]
 This function does not assume that compatibility is transitive, i.e. it
 does not assume that
      If (compatible? a b) and (compatible? b c)), then (compatible? a c).
+A consequence of this is, it's O(n^2) to reduce-compatible-types.
 
 This is to accommodate for 'simplify' behavior. If you try to
 reduce-simplify-compatible-types on
@@ -142,7 +147,7 @@ So simplify-compatible? is not transitive!"
           []
           arbitrary-unmerged-types))
 
-;; # Unions and Collections helpers
+;; # Super-useful logic-containing factory functions
 
 (defn- one? [a-seq]
   (= (count a-seq) 1))

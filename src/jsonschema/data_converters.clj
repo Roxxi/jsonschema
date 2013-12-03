@@ -1,10 +1,10 @@
 (ns jsonschema.data-converters
   "Functions that up-convert scalar data of one type,
 to scalar data of another type"
-  (:use roxxi.utils.print
-        roxxi.utils.collections
-        jsonschema.type-system.types)
-  (:require [clojure.math.numeric-tower :as num-tower]))
+  (:require [clojure.math.numeric-tower :as num-tower]
+            [roxxi.utils.print :refer [print-expr]]
+            [roxxi.utils.collections :refer [project-map]]
+            [jsonschema.type-system.types :refer [document-type?]]))
 
 (defn- ->null [datum]
   nil)

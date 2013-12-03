@@ -31,13 +31,17 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
 
 ;; # Special Datatypes
 ;; The whole notion here is we want to prove out we can do things
-;; like handle mongo's date and id representations
+;; like handle mongo's date and id representations.
 
 (defn special-date? [x]
   (and (clojure.core/string? x)
        (.startsWith (clojure.string/lower-case x) "date(")
        (.endsWith x ")")))
 
+;; You may wonder, what is special-id? doing here if it always returns false?
+;; The answer is, it's a stub during development to make sure that special data
+;; types actually have a place where they belong, somewhere in the overall
+;; type system.
 (defn special-id? [x]
   false)
 
@@ -47,7 +51,7 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
    (special-id? x) nil))
 
 
-;; # Implementation for Examples.
+;; # Implementation for examples
 
 (deftype ClojureTypePredicator []
   TypePredicator
@@ -72,24 +76,29 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
      (str? pred x) (make-str x),
      (document? pred x) (make-document
                          (project-map x :value-xform #(extract extractor %))),
-     (collection? pred x) (turn-into-a-collection type-reducer
-                                                  (map #(extract extractor %) x))
+     (collection? pred x) (turn-into-a-collection
+                           type-reducer
+                           (map #(extract extractor %) x))
      :else (throw
             (RuntimeException.
-             (str "Do not know how to extract a type from " x " of class " (class x)))))))
+             (str "Do not know how to extract a type from " x
+                  " of class " (class x)))))))
 
-;; ## Factory methods.
+;; # Factory functions
 
 (defn clojure-predicator []
   (ClojureTypePredicator.))
 
-(defn merging-clojure-type-extractor []
-  (ClojureTypeExtractor. (clojure-predicator) merge-reducer))
-
-(defn simplifying-clojure-type-extractor []
-  (ClojureTypeExtractor. (clojure-predicator) simplify-reducer))
+(defn clojure-type-extractor [type-reducer]
+  (ClojureTypeExtractor. (clojure-predicator) type-reducer))
 
 ;; # Convenience functions
+
+(defn merging-clojure-type-extractor []
+  (clojure-type-extractor merge-reducer))
+
+(defn simplifying-clojure-type-extractor []
+  (clojure-type-extractor simplify-reducer))
 
 (defn extract-type-merging [clojure-data-structure]
   (extract (merging-clojure-type-extractor) clojure-data-structure))

@@ -1,8 +1,7 @@
 (ns jsonschema.example-data
   (:use clojure.java.io
-        jsonschema.parser
-        jsonschema.type-system.types)
-  (:require [roxxi.utils.collections :refer :all]
+        jsonschema.parser)
+  (:require [roxxi.utils.collections :refer [extract-map project-map]]
             [roxxi.utils.print :refer [print-expr]]
             [jsonschema.type-system.extract :refer [extract-type-merging]])
 

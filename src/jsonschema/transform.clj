@@ -1,8 +1,15 @@
 (ns jsonschema.transform
   "Transformations to apply to schemas"
-  (:use roxxi.utils.print
-        roxxi.utils.collections
-        jsonschema.type-system.types))
+  (:require [roxxi.utils.print :refer [print-expr]]
+            [roxxi.utils.collections :refer [project-map]]
+            [jsonschema.type-system.types :refer [scalar-type?
+                                                  document-type?
+                                                  union-type?
+                                                  collection-type?
+                                                  empty-document?
+                                                  make-str
+                                                  make-document
+                                                  getType]]))
 
 ;; # Table Transform
 ;; Transforming schemas that are almost flat document maps

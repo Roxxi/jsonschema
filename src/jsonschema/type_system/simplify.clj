@@ -65,9 +65,7 @@
 (defn compact-merge-union-union [u1 u2]
   (merge-union-union u1 u2 :type-reducer simplify-reducer))
 
-;; # The money
-
-;; see merge.clj
+;; # Putting it all together (see merge.clj)
 (def simple-type*type=>merge-fn
   (reduce extend-merge-fn-mappings
           type*type=>merge-fn
@@ -81,14 +79,14 @@
            [:union :collection compact-merge-union-collection]
            [:union :union compact-merge-union-union]]))
 
-(defn simplify-types [& types]
-  (let [simplifier (type-simplifier)]
-    (reduce #(type-merge simplifier % %2) types)))
+;; # The money
 
 (defn type-simplifier []
   (make-type-merger simple-type*type=>merge-fn))
 
-
+(defn simplify-types [& types]
+  (let [simplifier (type-simplifier)]
+    (reduce #(type-merge simplifier % %2) types)))
 
 (defn simplify-two-types [t1 t2]
   (type-merge (type-simplifier) t1 t2))
