@@ -49,7 +49,7 @@
 
 
 
-(defn- parsed-if-parsed [val]
+(defn parsed-if-parsed [val]
   (when (not (string? val))
     val))
 
@@ -59,7 +59,7 @@
 ;; Clojure can support bigger integers than this
 ;; but, let's assume that this might be used
 ;; by non-clojure code, and that there's a 64 bit max.
-(defn- number-if-number [val]
+(defn number-if-number [val]
   (and (string? val)
        (or (re-matches #"(^[\-]?[1-9]\d*$)|(^[\-]?0$)" val)
            (re-matches #"(^[\-]?[1-9]\d*\.\d+$)|(^[\-]?0\.\d+$)" val))
