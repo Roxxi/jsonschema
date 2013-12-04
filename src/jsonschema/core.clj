@@ -19,8 +19,11 @@
 ;; # Generics
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn- data-to-schema [line-seq line-parse-fn schema-extract-fn schema-merge-fn]
-  (let [schemas (map (comp schema-extract-fn line-parse-fn) line-seq)]
+(defn- data-to-schema [records
+                       record-parse-fn
+                       schema-extract-fn
+                       schema-merge-fn]
+  (let [schemas (map (comp schema-extract-fn record-parse-fn) record-seq)]
     (reduce schema-merge-fn schemas)))
 
 (defn- file-to-schema [filepath line-parse-fn schema-extract-fn schema-merge-fn]
@@ -42,9 +45,9 @@
                             & {:keys [line-xform]
                                :or {line-xform identity}}]
   (let [filepath-to-schema-fn #(json-file-to-schema %
-                                     schema-extract-fn
-                                     schema-merge-fn
-                                     :line-xform line-xform)
+                                                    schema-extract-fn
+                                                    schema-merge-fn
+                                                    :line-xform line-xform)
         schemas (map filepath-to-schema-fn filepaths)]
     (reduce schema-merge-fn schemas)))
 
@@ -52,9 +55,9 @@
 
 
 (defn analyze-json-schema [filepaths & {:keys [line-xform analysis summary]
-                                   :or {line-xform identity
-                                        analysis :comprehensive
-                                        summary true}} ]
+                                        :or {line-xform identity
+                                             analysis :comprehensive
+                                             summary true}} ]
   (let [schema-merge-fn (merge-fn-mapping analysis)
         schema (files-to-schema filepaths schema-merge-fn :line-xform line-xform)]
     (when summary
@@ -73,19 +76,20 @@
       val))
 
 (defn parse-csv-line [line delimiter header]
+  "Important note: this implementation is too naive to understand the concept of
+escaped delimiters appearing in the values..."
   (let [delimiter (re-pattern delimiter)
         raw-vals (split line delimiter)
         vals (map (comp parse-csv-val trim) raw-vals)
-        header (if (= header :default)
-                 (map #(str "col" %) (range (count vals)))
-                 header)
+        header (or header
+                   (map #(str "col" %) (range (count vals))))
         kv-pairs (map #(vector % %2) header vals)]
     (into {} kv-pairs)))
 
 (defn csv-file-to-schema [filepath schema-extract-fn schema-merge-fn
                           & {:keys [delimiter header line-xform]
                              :or {delimiter ","
-                                  header :default
+                                  header nil
                                   line-xform identity}}]
   (let [line-parse-fn #(parse-csv-line % delimiter header)]
     (file-to-schema filepath line-parse-fn schema-extract-fn schema-merge-fn)))
