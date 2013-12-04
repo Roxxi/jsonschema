@@ -1,5 +1,7 @@
 (ns jsonschema.type-system.types
   "These are the structures we use to represent type."
+  {:author "Alex Bahouth, Matt Halverson"
+   :date "12/1/2012"}
   (:require [roxxi.utils.print :refer [print-expr]]
             [roxxi.utils.common :refer [def-]]))
 

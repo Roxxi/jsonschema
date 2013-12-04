@@ -1,4 +1,12 @@
 (ns jsonschema.type-system.merge
+  "Merging has a strict merge policy.
+Two documents are only merge-compatible if they have the same keysets.
+Two collections are only merge-compatible if their contents are merge-compatible
+  (so empty collections are NOT merge-compatible with non-empty collections).
+Two unions are only merge-compatible if all of their contents are
+  merge-compatible."
+  {:author "Alex Bahouth, Matt Halverson"
+   :date "12/1/2012"}
   (:require [jsonschema.type-system.types :refer :all]
             [jsonschema.type-system.merge-common :refer
              [type-merge

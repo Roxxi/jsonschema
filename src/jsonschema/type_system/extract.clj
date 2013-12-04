@@ -1,10 +1,14 @@
 (ns jsonschema.type-system.extract
+  "Takes a Clojure object and gives you back a Type."
+  {:author "Alex Bahouth, Matt Halverson"
+   :date "12/1/2012"}
   (:require [jsonschema.type-system.types :refer :all]
             [jsonschema.type-system.merge-common :refer [turn-into-a-collection]]
             [jsonschema.type-system.merge :refer [merge-reducer]]
             [jsonschema.type-system.simplify :refer [simplify-reducer]]
             [roxxi.utils.collections :refer :all]
-            [roxxi.utils.print :refer [print-expr]]))
+            [roxxi.utils.print :refer [print-expr]])
+  (:import [java.text ParsePosition DateFormat]))
 
 ;; # General Concepts for deriving types from structures
 (defprotocol TypePredicator
@@ -32,6 +36,17 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
 ;; # Special Datatypes
 ;; The whole notion here is we want to prove out we can do things
 ;; like handle mongo's date and id representations.
+
+(defn parseable? [^DateFormat date-format string]
+  (let [pos (ParsePosition. 0)
+        result (.parse date-format string pos)
+        idx (.getIndex pos)]
+    (not (zero? idx))))
+;; (def sdf (java.text.SimpleDateFormat. "yyyy-MM-dd"))
+;; (parseable? sdf "2013-10-10")
+;; (parseable? sdf "2013--10")
+;; (parseable? "")
+;; (parseable? "2-10-10")
 
 (defn special-date? [x]
   (and (clojure.core/string? x)

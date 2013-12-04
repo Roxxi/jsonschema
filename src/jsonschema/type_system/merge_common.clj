@@ -1,5 +1,7 @@
 (ns jsonschema.type-system.merge-common
   "Things that are needed by both merge.clj and simplify.clj."
+  {:author "Alex Bahouth, Matt Halverson"
+   :date "11/1/2013"}
   (:require [jsonschema.type-system.types :refer :all]
             [clojure.set :refer [union]]
             [roxxi.utils.print :refer [print-expr]]))

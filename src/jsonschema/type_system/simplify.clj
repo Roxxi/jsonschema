@@ -1,4 +1,10 @@
 (ns jsonschema.type-system.simplify
+  "Simplifying has a loose/generous/upcasting merge policy.
+Any pair of documents are simplify-compatible.
+Any pair of collections are simplify-compatible.
+Any pair of unions are simplify-compatible."
+  {:author "Alex Bahouth, Matt Halverson"
+   :date "12/1/2012"}
   (:use jsonschema.type-system.types
         jsonschema.type-system.merge)
   (:require [clojure.set :refer [union]]
