@@ -37,16 +37,28 @@ conceptually, if we couldn't implement a predicator, we can't implement this."
 ;; The whole notion here is we want to prove out we can do things
 ;; like handle mongo's date and id representations.
 
+;; parseable? doesn't NEED to be in this module; ultimately, it may
+;; live somewhere else. For now, though, I (Matt) just wanted to have
+;; it checked in somewhere.
 (defn parseable? [^DateFormat date-format string]
+  "This function is a more-performant alternative to calling
+      (try (.parse date-format string) (catch ParseException e ... ))
+This does NOT throw/catch exceptions internally.
+
+The implementation of this is based on the java 6 and java 7 source code --
+the unary parse method calls the binary parse method, then inspects the state of
+the ParsePosition. If its index is zero, then (and only then) is a
+ParseException thrown. Here, if the index is zero, `false` is returned."
   (let [pos (ParsePosition. 0)
-        result (.parse date-format string pos)
+        result (.parse date-format (str string) pos)
         idx (.getIndex pos)]
     (not (zero? idx))))
-;; (def sdf (java.text.SimpleDateFormat. "yyyy-MM-dd"))
-;; (parseable? sdf "2013-10-10")
-;; (parseable? sdf "2013--10")
-;; (parseable? "")
-;; (parseable? "2-10-10")
+;; Sample usage:
+;;   (def sdf (java.text.SimpleDateFormat. "yyyy-MM-dd"))
+;;   (parseable? sdf "2013-10-10")
+;;   (parseable? sdf "2013--10")
+;;   (parseable? "")
+;;   (parseable? "2-10-10")
 
 (defn special-date? [x]
   (and (clojure.core/string? x)
