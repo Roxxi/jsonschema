@@ -31,7 +31,7 @@
   ([x1 x2 result]
      `(is (= (type-merge merger ~x1 ~x2) ~result)))
   ([x1 x2 result comment]
-     `(is (= (type-merge merger ~x1 ~x2) ~result) comment)))b
+     `(is (= (type-merge merger ~x1 ~x2) ~result) comment)))
 
 ;; # Canonical Examples of data types
 ;;
