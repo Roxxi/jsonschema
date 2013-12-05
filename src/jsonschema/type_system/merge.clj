@@ -135,6 +135,4 @@ Two unions are only merge-compatible if all of their contents are
   (type-merge (type-merger) t1 t2))
 
 (defn merge-reducer [types]
-  (reduce-compatible-types types
-                           merge-compatible?
-                           #(merge-two-types % %2)))
+  (reduce-compatible-types types merge-compatible? merge-two-types))

@@ -98,6 +98,4 @@ Any pair of unions are simplify-compatible."
   (type-merge (type-simplifier) t1 t2))
 
 (defn simplify-reducer [types]
-  (reduce-compatible-types types
-                           simplify-compatible?
-                           #(simplify-two-types % %2)))
+  (reduce-compatible-types types simplify-compatible? simplify-two-types))

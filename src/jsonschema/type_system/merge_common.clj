@@ -142,7 +142,7 @@ So simplify-compatible? is not transitive!"
   (reduce (fn [merged-types type]
             (let [incompatibles (remove #(compatible? type %) merged-types)
                   compatibles (filter #(compatible? type %) merged-types)
-                  merged-compatibles (reduce #(merge-two-compatible-things % %2)
+                  merged-compatibles (reduce merge-two-compatible-things
                                              type
                                              compatibles)]
               (conj incompatibles merged-compatibles)))
@@ -167,7 +167,7 @@ So simplify-compatible? is not transitive!"
 (defn turn-into-a-union [type-reducer types]
   "If you need to combine a Union with other types (even other Unions),
 this has the logic to do that sensibly."
-  (if (some #(union-type? %) types)
+  (if (some union-type? types)
     ;; This will recurse until all nested unions are unflattened.
     (turn-into-a-union type-reducer (flatten-nested-unions types))
     (let [unique-types (type-reducer types)]

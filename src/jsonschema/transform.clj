@@ -37,13 +37,10 @@ to define a database table."
 ;; type-rollup[n] can be encompassed by type-rollup[n+1]
 (def type-rollup [:null :bool :int :real :str])
 
-(defn- negative? [x]
-  (< x 0))
-
 (defn genericize-types [type1 type2]
   (let [i1 (.indexOf type-rollup (getType type1))
         i2 (.indexOf type-rollup (getType type2))]
-    (if (or (negative? i1) (negative? i2))
+    (if (or (neg? i1) (neg? i2))
       ;; TODO This is a cop-out, but what else can we do?
       ;; Don't know...
       (make-str "")

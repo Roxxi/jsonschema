@@ -31,7 +31,7 @@
 (defn- first-and-last-char-are [str-val first-c last-c]
   (and
    (= (get str-val 0) first-c)
-   (= (get str-val (- (count str-val) 1)) last-c)))
+   (= (get str-val (dec (count str-val))) last-c)))
 
 (defn- array-ish? [str-val]
   (first-and-last-char-are str-val \[ \]))

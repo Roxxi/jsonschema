@@ -83,7 +83,7 @@ escaped delimiters appearing in the values..."
         vals (map (comp parse-csv-val trim) raw-vals)
         header (or header
                    (map #(str "col" %) (range (count vals))))
-        kv-pairs (map #(vector % %2) header vals)]
+        kv-pairs (map vector header vals)]
     (into {} kv-pairs)))
 
 (defn csv-file-to-schema [filepath schema-extract-fn schema-merge-fn
