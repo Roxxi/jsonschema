@@ -3,10 +3,13 @@
         jsonschema.type-system.types)
   (:require [jsonschema.type-system.merge-common :refer [type-merge]]
             [jsonschema.type-system.merge :refer [type-merger
-                                                  merge-types]]
-            [jsonschema.type-system.extract :refer [extract-type-merging]]
+                                                  merge-types
+                                                  merge-reducer]]
+            [jsonschema.type-system.extract :refer [extract
+                                                    clojure-type-extractor]]
             [roxxi.utils.print :refer [print-expr]]
-            [roxxi.utils.collections :refer [extract-map]]))
+            [roxxi.utils.collections :refer [extract-map]]
+            [roxxi.utils.common :refer [def-]]))
 
 ;; # Important note
 ;; The code commented out at various points below is code used to generate data
@@ -18,8 +21,11 @@
 
 ;; # Generic Helpers for all tests
 
-(def merger (type-merger))
-(def extract-type extract-type-merging)
+(def- date-format-pattern "yyyy-MM-dd")
+
+(def- merger (type-merger))
+(def- extract-type
+  #(extract (clojure-type-extractor merge-reducer [date-format-pattern]) %))
 
 (defmacro merged-is
   ([x1 x2 result]
@@ -32,7 +38,7 @@
 ;; ## Canonical scalar expressions
 
 (def scalar-expressions
-  [nil true "Hello" 6 "date(someday)" 3.14])
+  [nil true "Hello" 6 "2013-01-01" 3.14])
 
 ;; ### Generate scalar types from example expressions
 
@@ -46,7 +52,7 @@
    :bool #jsonschema.type_system.types.Bool{},
    :str #jsonschema.type_system.types.Str{:min 5, :max 5},
    :int #jsonschema.type_system.types.Int{:min 6, :max 6},
-   :date #jsonschema.type_system.types.Date{:format nil},
+   :date #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}},
    :real #jsonschema.type_system.types.Real{:min 3.14, :max 3.14}})
 
 ;; ## Canonical Collection examples
@@ -54,11 +60,11 @@
 (def collection-expressions
   [{:name "empty" :coll []}
    {:name "single" :coll ["string" "string" "string" "string"]}
-   {:name "mixed" :coll [nil true "Hello" 6 "date(someday)" 10.209]}
+   {:name "mixed" :coll [nil true "Hello" 6 "2013-01-01" 10.209]}
    {:name "nested" :coll [[1 2 3] [4 5 6 7] [8 9 2]]}
    {:name "mixed-nested" :coll [ ["string" "string" "string" "string"] [8 9 2] [nil nil] ]}
    {:name "nested-mixed" :coll [ [1 "str" nil] [1 "str" nil] [1 "str" nil] ]}
-   {:name "mixed-nested-mixed" :coll [ [1 "str" nil] [1 "str"] ["date(id)" "str" nil] ]}
+   {:name "mixed-nested-mixed" :coll [ [1 "str" nil] [1 "str"] ["2013-01-01" "str" nil] ]}
    {:name "empty-nested" :coll [ [ [] [] [] ] [ [] [] ] [ [] 5 [] ] ] }
    ])
 
@@ -70,22 +76,22 @@
 (def coll-types
   {:empty #jsonschema.type_system.types.Collection{:coll-of :nothing},
    :single #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Str{:min 6, :max 6}},
-   :mixed #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Str{:min 5, :max 5} #jsonschema.type_system.types.Int{:min 6, :max 6} #jsonschema.type_system.types.Date{:format nil} #jsonschema.type_system.types.Real{:min 10.209, :max 10.209}}}},
+   :mixed #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Str{:min 5, :max 5} #jsonschema.type_system.types.Int{:min 6, :max 6} #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}} #jsonschema.type_system.types.Real{:min 10.209, :max 10.209}}}},
    :nested #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 9}}},
    :mixed-nested #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Str{:min 6, :max 6}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 2, :max 9}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Null{}}}}},
    :nested-mixed #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 1, :max 1} #jsonschema.type_system.types.Str{:min 3, :max 3} #jsonschema.type_system.types.Null{}}}}},
-   :mixed-nested-mixed #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 1, :max 1} #jsonschema.type_system.types.Str{:min 3, :max 3} #jsonschema.type_system.types.Null{}}}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 1, :max 1} #jsonschema.type_system.types.Str{:min 3, :max 3}}}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Date{:format nil} #jsonschema.type_system.types.Str{:min 3, :max 3} #jsonschema.type_system.types.Null{}}}}}}},
+   :mixed-nested-mixed #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 1, :max 1} #jsonschema.type_system.types.Str{:min 3, :max 3} #jsonschema.type_system.types.Null{}}}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 1, :max 1} #jsonschema.type_system.types.Str{:min 3, :max 3}}}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}} #jsonschema.type_system.types.Str{:min 3, :max 3} #jsonschema.type_system.types.Null{}}}}}}},
    :empty-nested #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of :nothing} #jsonschema.type_system.types.Int{:min 5, :max 5}}}} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Collection{:coll-of :nothing}}}}}})
 
 ;; ## Canonical Document expressions
 ;; NOTE: the :name field is used to identify the document schema
 ;; and the document schema will include the :name field
 (def document-expressions
-  [{:name "scalars" :a "simple" :b nil :c 25 :d true :e "date(someday)" :f 10.4}
+  [{:name "scalars" :a "simple" :b nil :c 25 :d true :e "2013-01-01" :f 10.4}
    {:name "flat-collection" :a ["item1" "item2" "item3"]}
    {:name "flat-mixed-collection" :a ["item1" 25 nil 10.4]}
-   {:name "flat-nested-collection" :a [34 25 46 ["date(someday)" "date(someotherday)"]]}
-   {:name "flat-nested-mixed-collection" :a [34 25 46 ["date(sos)" "date(so)" "hello"]]}
+   {:name "flat-nested-collection" :a [34 25 46 ["2013-01-01" "2013-01-02"]]}
+   {:name "flat-nested-mixed-collection" :a [34 25 46 ["2013-01-01" "2013-01-02" "hello"]]}
    {:name "subdoc" :a {:a-collection ["item1" "item2" "item3" "longer-item"]}}
    {:name "coll-subdoc" :a [ {:a ["item1" "item2" "item3"]}
                              {:a [1 2 3]}
@@ -111,7 +117,7 @@
                                                 :b #jsonschema.type_system.types.Null{},
                                                 :f #jsonschema.type_system.types.Real{:min 10.4, :max 10.4},
                                                 :d #jsonschema.type_system.types.Bool{},
-                                                :e #jsonschema.type_system.types.Date{:format nil}}}
+                                                :e #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}}}
    :flat-collection
    #jsonschema.type_system.types.Document{:properties #{:a :name},
                                           :map {:a #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Str{:min 5, :max 5}},
@@ -122,11 +128,11 @@
                                                 :name #jsonschema.type_system.types.Str{:min 21, :max 21}}}
    :flat-nested-collection
    #jsonschema.type_system.types.Document{:properties #{:a :name},
-                                          :map {:a #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Date{:format nil}} #jsonschema.type_system.types.Int{:min 25, :max 46}}}},
+                                          :map {:a #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}} #jsonschema.type_system.types.Int{:min 25, :max 46}}}},
                                                 :name #jsonschema.type_system.types.Str{:min 22, :max 22}}}
    :flat-nested-mixed-collection
    #jsonschema.type_system.types.Document{:properties #{:a :name},
-                                          :map {:a #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 5, :max 5} #jsonschema.type_system.types.Date{:format nil}}}} #jsonschema.type_system.types.Int{:min 25, :max 46}}}},
+                                          :map {:a #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 5, :max 5} #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}}}} #jsonschema.type_system.types.Int{:min 25, :max 46}}}},
                                                 :name #jsonschema.type_system.types.Str{:min 28, :max 28}}}
    :subdoc
    #jsonschema.type_system.types.Document{:properties #{:a :name},
@@ -169,32 +175,32 @@
   {:int-null #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Int{:min 6, :max 6}}},
    :real-int #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Real{:min 3.14, :max 3.14} #jsonschema.type_system.types.Int{:min 6, :max 6}}},
    :null-int #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Int{:min 6, :max 6}}},
-   :date-bool #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Date{:format nil}}},
-   :date-null #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Date{:format nil}}},
-   :date-real #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Real{:min 3.14, :max 3.14} #jsonschema.type_system.types.Date{:format nil}}},
-   :date-str #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 5, :max 5} #jsonschema.type_system.types.Date{:format nil}}},
+   :date-bool #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}}},
+   :date-null #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}}},
+   :date-real #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Real{:min 3.14, :max 3.14} #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}}},
+   :date-str #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 5, :max 5} #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}}},
    :bool-int #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Int{:min 6, :max 6}}},
    :bool-null #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Null{}}},
-   :null-date #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Date{:format nil}}},
+   :null-date #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}}},
    :int-bool #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Int{:min 6, :max 6}}},
    :int-real #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Real{:min 3.14, :max 3.14} #jsonschema.type_system.types.Int{:min 6, :max 6}}},
-   :bool-date #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Date{:format nil}}},
+   :bool-date #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}}},
    :real-null #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Real{:min 3.14, :max 3.14}}},
    :null-str #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Str{:min 5, :max 5}}},
    :real-str #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Real{:min 3.14, :max 3.14} #jsonschema.type_system.types.Str{:min 5, :max 5}}},
    :str-bool #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Str{:min 5, :max 5}}},
-   :date-int #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 6, :max 6} #jsonschema.type_system.types.Date{:format nil}}},
+   :date-int #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 6, :max 6} #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}}},
    :str-real #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Real{:min 3.14, :max 3.14} #jsonschema.type_system.types.Str{:min 5, :max 5}}},
    :str-int #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 5, :max 5} #jsonschema.type_system.types.Int{:min 6, :max 6}}},
    :real-bool #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Real{:min 3.14, :max 3.14}}},
    :int-str #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 6, :max 6} #jsonschema.type_system.types.Str{:min 5, :max 5}}},
    :bool-real #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Real{:min 3.14, :max 3.14}}},
-   :int-date #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 6, :max 6} #jsonschema.type_system.types.Date{:format nil}}},
-   :str-date #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 5, :max 5} #jsonschema.type_system.types.Date{:format nil}}},
+   :int-date #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 6, :max 6} #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}}},
+   :str-date #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 5, :max 5} #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}}},
    :bool-str #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Str{:min 5, :max 5}}},
    :str-null #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Str{:min 5, :max 5}}},
    :null-bool #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Bool{}}},
-   :real-date #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Real{:min 3.14, :max 3.14} #jsonschema.type_system.types.Date{:format nil}}},
+   :real-date #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Real{:min 3.14, :max 3.14} #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}}},
    :null-real #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Real{:min 3.14, :max 3.14}}}})
 
 ;; ### The actual scalar-scalar union tests
@@ -279,7 +285,7 @@
     (testing "Tests if we attempt to merge to a scalar with a document,
             or collection, then the result is a union of the two types."
       (merged-is (scalar-types :bool) (doc-types :scalars)
-                 #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Document{:properties #{:a :name :c :b :f :d :e}, :map {:a #jsonschema.type_system.types.Str{:min 6, :max 6}, :name #jsonschema.type_system.types.Str{:min 7, :max 7}, :c #jsonschema.type_system.types.Int{:min 25, :max 25}, :b #jsonschema.type_system.types.Null{}, :f #jsonschema.type_system.types.Real{:min 10.4, :max 10.4}, :d #jsonschema.type_system.types.Bool{}, :e #jsonschema.type_system.types.Date{:format nil}}}}})
+                 #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Document{:properties #{:a :name :c :b :f :d :e}, :map {:a #jsonschema.type_system.types.Str{:min 6, :max 6}, :name #jsonschema.type_system.types.Str{:min 7, :max 7}, :c #jsonschema.type_system.types.Int{:min 25, :max 25}, :b #jsonschema.type_system.types.Null{}, :f #jsonschema.type_system.types.Real{:min 10.4, :max 10.4}, :d #jsonschema.type_system.types.Bool{}, :e #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}}}}})
       (merged-is (scalar-types :bool) (coll-types :single)
                  #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Str{:min 6, :max 6}}}})))
 
@@ -302,12 +308,12 @@
   (testing "Merging a document with any kind of scalar, or collection
             type results in a union of the two types."
     (merged-is (doc-types :scalars) (scalar-types :bool)
-               #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Document{:properties #{:a :name :c :b :f :d :e}, :map {:a #jsonschema.type_system.types.Str{:min 6, :max 6}, :name #jsonschema.type_system.types.Str{:min 7, :max 7}, :c #jsonschema.type_system.types.Int{:min 25, :max 25}, :b #jsonschema.type_system.types.Null{}, :f #jsonschema.type_system.types.Real{:min 10.4, :max 10.4}, :d #jsonschema.type_system.types.Bool{}, :e #jsonschema.type_system.types.Date{:format nil}}}}})
+               #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Document{:properties #{:a :name :c :b :f :d :e}, :map {:a #jsonschema.type_system.types.Str{:min 6, :max 6}, :name #jsonschema.type_system.types.Str{:min 7, :max 7}, :c #jsonschema.type_system.types.Int{:min 25, :max 25}, :b #jsonschema.type_system.types.Null{}, :f #jsonschema.type_system.types.Real{:min 10.4, :max 10.4}, :d #jsonschema.type_system.types.Bool{}, :e #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}}}}})
 
     (merged-is (doc-types :flat-mixed-collection) (coll-types :mixed)
                #jsonschema.type_system.types.Union{:union-of #{
                                                               #jsonschema.type_system.types.Document{:properties #{:a :name}, :map {:a #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 5, :max 5} #jsonschema.type_system.types.Int{:min 25, :max 25} #jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Real{:min 10.4, :max 10.4}}}}, :name #jsonschema.type_system.types.Str{:min 21, :max 21}}}
-                                                                                                    #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Str{:min 5, :max 5} #jsonschema.type_system.types.Int{:min 6, :max 6} #jsonschema.type_system.types.Date{:format nil} #jsonschema.type_system.types.Real{:min 10.209, :max 10.209}}}}}})))
+                                                                                                    #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Bool{} #jsonschema.type_system.types.Str{:min 5, :max 5} #jsonschema.type_system.types.Int{:min 6, :max 6} #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}} #jsonschema.type_system.types.Real{:min 10.209, :max 10.209}}}}}})))
 
 ;; ## Document - Incongruent Merging
 

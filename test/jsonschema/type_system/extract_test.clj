@@ -3,29 +3,32 @@
         clojure.pprint
         jsonschema.type-system.types
         cheshire.core)
-  (:require [jsonschema.type-system.extract
+  (:require [jsonschema.type-system.merge :refer [merge-reducer]]
+            [jsonschema.type-system.simplify :refer [simplify-reducer]]
+            [jsonschema.type-system.extract
              :refer
              [extract-type-merging
               extract-type-simplifying
-              special-date?
               clojure-predicator
+              clojure-type-extractor
+              extract
               special?
               null?
               bool?
               int?
               real?
               str?
+              date?
               document?
-              collection?]]))
+              collection?]]
+            [roxxi.utils.common :refer [def-]]))
 
+(def- date-format-pattern "yyyy-MM-dd")
 
 (deftest special-predicate-tests
-  (testing "Testing the special predicates"
-    (is (special-date? "date(111222333)"))
-    (is (not (special-date? "id(111222333)")))
-    (is (not (special-date? "death(111222333)")))))
+  (testing "No special predicates as of now"))
 
-(def predy (clojure-predicator))
+(def predy (clojure-predicator (vector date-format-pattern)))
 
 (defmacro p-is
   ([pred val]
@@ -43,9 +46,8 @@
   (testing "Testing the ClojureTypePredicator"
     (p-is null? nil)
     (p-is-not null? 5)
-    (p-is special?  "date(111222333)")
-    (p-is-not special?  "I'm not special")
-    (p-is-not str? "date(111222333)" "It's special, it shouldn't be a string.")
+    (p-is-not special? "I'm not special")
+    (p-is-not str? "2013-01-01" "It's special, it shouldn't be a string.")
     (p-is str? "hello!")
     (p-is str? "date(")
     (p-is str? "id(")
@@ -61,12 +63,32 @@
     (p-is-not real? nil)
     (p-is bool? true)
     (p-is bool? false)
+    (p-is-not bool? "true")
+    (p-is-not bool? "false")
+    (p-is-not bool? "nil")
+    (p-is-not bool? "other string")
     (p-is-not bool? nil)
     (p-is-not bool? 0)
     (p-is-not bool? 1.0)
     (p-is-not bool? [])
     (p-is-not bool? {})
     (p-is-not bool? {:a 1})
+    (p-is date? "2013-10-10")
+    (p-is date? "2-10-10")
+    (p-is-not date? "2013--10")
+    (p-is-not date? "")
+    (p-is-not date? true)
+    (p-is-not date? false)
+    (p-is-not date? nil)
+    (p-is-not date? "true")
+    (p-is-not date? "false")
+    (p-is-not date? "nil")
+    (p-is-not date? "other string")
+    (p-is-not date? 0)
+    (p-is-not date? 1.0)
+    (p-is-not date? [])
+    (p-is-not date? {})
+    (p-is-not date? {:a 1})
     (p-is-not document? [])
     (p-is-not document? [5 :a])
     (p-is-not document? [:a :a])
@@ -78,13 +100,13 @@
     (p-is document? {:a 5, :b 6 :c ["a" "b" "c"]})
     (p-is document? {:a 5, :b 6 :c {:something :else :that :is :good :enough}})
     (p-is document? {:name "scalars"
-                     :a "simple" :b nil :c 25 :d true :e "date(someday)" :f "id(something)"})
+                     :a "simple" :b nil :c 25 :d true :e "2013-01-01" :f "id(something)"})
     (p-is document? {:name "flat-collection" :a ["item1" "item2" "item3"]})
     (p-is document? {:name "flat-mixed-collection" :a ["item1" 25 nil]})
     (p-is document? {:name "flat-nested-collection"
-                     :a [34 25 46 ["date(someday)" "date(someotherday)"]]})
+                     :a [34 25 46 ["2013-01-01" "2013-01-02"]]})
     (p-is document? {:name "flat-nested-mixed-collection"
-                     :a [34 25 46 ["date(sos)" "date(so)" "hello"]]})
+                     :a [34 25 46 ["2013-01-01" "2013-01-02" "hello"]]})
     (p-is document? {:name "subdoc" :a {:a-collection ["item1" "item2" "item3"]}})
     (p-is document? {:name "coll-subdoc"
                      :a [ {:a ["item1" "item2" "item3"]}
@@ -104,7 +126,7 @@
     (p-is-not collection? {[] :a :b []})
     (p-is-not collection? {[] []})
     (p-is collection? [])
-    (p-is collection? [nil true "Hello" 6 "date(someday)" "id(something)"])
+    (p-is collection? [nil true "Hello" 6 "2013-01-01" "id(something)"])
     (p-is collection? [1 2 3])
     (p-is collection? ["string" "string" "string" "string"])
     (p-is collection? [[] []])
@@ -118,50 +140,52 @@
 
 
 (defmacro t-is
-  ([extractor x val]
-     `(is (= (~extractor ~x) ~val)))
-  ([extractor x val comment]
-     `(is (= (~extractor ~x) ~val) ~comment)))
+  ([extract-fn x val]
+     `(is (= (~extract-fn ~x) ~val)))
+  ([extract-fn x val comment]
+     `(is (= (~extract-fn ~x) ~val) ~comment)))
 
-(defmacro merged-t-is
-  ([x val]
-     `(t-is extract-type-merging ~x ~val))
-  ([x val comment]
-     `(t-is extract-type-merging ~x ~val ~comment)))
+(defn- merge-extract-fn [val]
+  (let [extractor (clojure-type-extractor merge-reducer [date-format-pattern])]
+    (extract extractor val)))
 
-(defmacro simplified-t-is
-  ([x val]
-     `(t-is extract-type-simplifying ~x ~val))
-  ([x val comment]
-     `(t-is extract-type-simplifying ~x ~val ~comment)))
+(defmacro merged-t-is [x val]
+  `(t-is merge-extract-fn ~x ~val))
+
+(defn- simplify-extract-fn [val]
+  (let [extractor (clojure-type-extractor simplify-reducer [date-format-pattern])]
+    (extract extractor val)))
+
+(defmacro simplified-t-is [x val]
+  `(t-is simplify-extract-fn ~x ~val))
 
 (def complex-doc
   {"a" 5,
    "b" [1 2 "a" 12 "b"],
-   "c" {"a" 5, "b" [1 2 "a" 12 "b"], "c" "date(1234)", "d" [1 2 3]},
-   "d" [{"a" 5, "b" [1 2 "a" 12 "b"], "c" "date(1234)", "d" [1 2 3]} 10 "a"]})
+   "c" {"a" 5, "b" [1 2 "a" 12 "b"], "c" "2013-01-01", "d" [1 2 3]},
+   "d" [{"a" 5, "b" [1 2 "a" 12 "b"], "c" "2013-01-01", "d" [1 2 3]} 10 "a"]})
 
 (def complex-doc-keys
   {:a 5,
-   :c {:a 5, :c "date(1234)", :b [1 2 "a" 12 "b"], :d [1 2 3]},
+   :c {:a 5, :c "2013-01-01", :b [1 2 "a" 12 "b"], :d [1 2 3]},
    :b [1 2 "a" 12 "b"],
-   :d [{:a 5, :c "date(1234)", :b [1 2 "a" 12 "b"], :d [1 2 3]} 10 "a"]})
+   :d [{:a 5, :c "2013-01-01", :b [1 2 "a" 12 "b"], :d [1 2 3]} 10 "a"]})
 
 (def complex-doc-type
   #jsonschema.type_system.types.Document{
                                          :properties #{"a" "b" "c" "d"},
                                          :map {"a" #jsonschema.type_system.types.Int{:min 5, :max 5},
                                                "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}}}},
-                                               "c" #jsonschema.type_system.types.Document{:properties #{"a" "b" "c" "d"}, :map {"a" #jsonschema.type_system.types.Int{:min 5, :max 5}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}}}}, "c" #jsonschema.type_system.types.Date{:format nil}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}},
-                                               "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Document{:properties #{"a" "b" "c" "d"}, :map {"a" #jsonschema.type_system.types.Int{:min 5, :max 5}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}}}}, "c" #jsonschema.type_system.types.Date{:format nil}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}} #jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 10, :max 10}}}}}})
+                                               "c" #jsonschema.type_system.types.Document{:properties #{"a" "b" "c" "d"}, :map {"a" #jsonschema.type_system.types.Int{:min 5, :max 5}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}}}}, "c" #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}},
+                                               "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Document{:properties #{"a" "b" "c" "d"}, :map {"a" #jsonschema.type_system.types.Int{:min 5, :max 5}, "b" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}}}}, "c" #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}, "d" #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}} #jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 10, :max 10}}}}}})
 
 (def complex-doc-keys-type
   #jsonschema.type_system.types.Document{
                                          :properties #{:a :c :b :d},
                                          :map {:a #jsonschema.type_system.types.Int{:min 5, :max 5},
-                                               :c #jsonschema.type_system.types.Document{:properties #{:a :c :b :d}, :map {:a #jsonschema.type_system.types.Int{:min 5, :max 5}, :c #jsonschema.type_system.types.Date{:format nil}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}}}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}},
+                                               :c #jsonschema.type_system.types.Document{:properties #{:a :c :b :d}, :map {:a #jsonschema.type_system.types.Int{:min 5, :max 5}, :c #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}}}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}},
                                                :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}}}},
-                                               :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Document{:properties #{:a :c :b :d}, :map {:a #jsonschema.type_system.types.Int{:min 5, :max 5}, :c #jsonschema.type_system.types.Date{:format nil}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}}}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}} #jsonschema.type_system.types.Int{:min 10, :max 10}}}}}})
+                                               :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Document{:properties #{:a :c :b :d}, :map {:a #jsonschema.type_system.types.Int{:min 5, :max 5}, :c #jsonschema.type_system.types.Date{:formats #{"yyyy-MM-dd"}}, :b #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Str{:min 1, :max 1} #jsonschema.type_system.types.Int{:min 1, :max 12}}}}, :d #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}}} #jsonschema.type_system.types.Int{:min 10, :max 10}}}}}})
 
 ;; TODO add tests here for all the type tests above
 (deftest clojure-extractor-test
@@ -170,7 +194,7 @@
     (merged-t-is 5 (make-int 5 5))
     (merged-t-is 5.0 (make-real 5.0 5.0))
     (merged-t-is "hello" (make-str 5 5))
-    (merged-t-is "date(nil)" (make-date nil))
+    (merged-t-is "1989-10-24" (make-date (vector date-format-pattern)))
     (merged-t-is false (make-bool))
     (merged-t-is true (make-bool))
     (is (thrown? RuntimeException (extract-type-merging :hello))

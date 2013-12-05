@@ -19,7 +19,7 @@
 ;; # Generics
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn- data-to-schema [records
+(defn- data-to-schema [record-seq
                        record-parse-fn
                        schema-extract-fn
                        schema-merge-fn]
@@ -59,11 +59,11 @@
                                              analysis :comprehensive
                                              summary true}} ]
   (let [schema-merge-fn (merge-fn-mapping analysis)
-        schema (files-to-schema filepaths schema-merge-fn :line-xform line-xform)]
+        schema (json-files-to-schema filepaths schema-merge-fn :line-xform line-xform)]
     (when summary
       (println
-       (str "Analyzed " @line-number " entries. " (count @failed-lines) " failed.")))
-    (clean-up!)
+       (str "Analyzed " @p/line-number " entries. " (count @p/failed-lines) " failed.")))
+    (p/clean-up!)
     schema))
 
 

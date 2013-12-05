@@ -3,7 +3,8 @@
   {:author "Alex Bahouth, Matt Halverson"
    :date "12/1/2012"}
   (:require [roxxi.utils.print :refer [print-expr]]
-            [roxxi.utils.common :refer [def-]]))
+            [roxxi.utils.common :refer [def-]]
+            [clojure.set :refer [union]]))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; # SIMPLE TYPES
@@ -19,7 +20,8 @@
   (getMax [this] "Returns the max value of this Ranged thing"))
 
 (defprotocol Formatted
-  (getFormat [this] "Returns the format string for this element's content"))
+  (getFormats [this] "Returns a set of format strings that describe
+                      this element's content"))
 
 ;; ## Records
 
@@ -52,11 +54,11 @@
   Typeable
   (getType [this] :null))
 
-(defrecord Date [format]
+(defrecord Date [formats]
   Typeable
   (getType [this] :date)
   Formatted
-  (getFormat [this] format))
+  (getFormats [this] formats))
 
 ;; ## Predicates
 
@@ -110,8 +112,13 @@
 (defn make-null []
   (Null. ))
 
-(defn make-date [format]
-  (Date. format))
+;; NB `set` is not called to dedup but rather to make equality of two Dates
+;; be independent of the ORDER of the date-formats.
+(defn make-date [date-format-patterns]
+  (Date. (set date-format-patterns)))
+
+(defn make-date-with [& date-format-patterns]
+  (make-date date-format-patterns))
 
 ;; ## Merging
 
@@ -119,35 +126,39 @@
   (let [min-val (min (getMin s1) (getMin s2))
         max-val (max (getMax s1) (getMax s2))
         known-types #{:int :real :str}]
-    (if (contains? known-types type)
-      (cond
-       (= type :int) (make-int min-val max-val)
-       (= type :real) (make-real min-val max-val)
-       (= type :str) (make-str min-val max-val))
+    (condp = type
+      :int (make-int min-val max-val)
+      :real (make-real min-val max-val)
+      :str (make-str min-val max-val)
       (throw
        (RuntimeException.
         (str "Do not know how to merge-ranged-scalars of type " type
              "; only know " known-types))))))
 
-;; XXX TODO what does it mean to merge the formats?
 (defn- merge-formatted-scalars [s1 s2 type]
-  (let [known-types #{:date}]
-    (if (contains? known-types type)
-      s1
+  (let [date-format-patterns (union (getFormats s1) (getFormats s2))
+        known-types #{:date}]
+    (condp = type
+      :date (make-date date-format-patterns)
       (throw
        (RuntimeException.
         (str ("Do not know how to merge-formatted-scalars of type " type
               "; only know " known-types)))))))
 
 (defn merge-same-typed-scalars [s1 s2]
-  (let [type (getType s1)]
+  (let [type (getType s1)
+        known-types #{:int :real :str :bool :null :date}]
     (condp = type
       :int (merge-ranged-scalars s1 s2 type)
       :real (merge-ranged-scalars s1 s2 type)
       :str (merge-ranged-scalars s1 s2 type)
       :bool s1
       :null s1
-      :date (merge-formatted-scalars s1 s2 type))))
+      :date (merge-formatted-scalars s1 s2 type)
+      (throw
+       (RuntimeException.
+        (str ("Do not know how to merge-same-typed-scalars of type " type
+              "; only know " known-types)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; # COMPLEX TYPES
@@ -223,8 +234,7 @@ to create collections of :nothing."
              property-type-map))
 
 ;; NB the call to 'set' is not to dedup but to make the equality of
-;;    unions be determined by their contents, regardless of the ORDER
-;;    of the sequence 'non-mergeable-types'.
+;;    unions be independent of the ORDER of their contents.
 (defn make-union [non-mergeable-types]
   (Union. (set non-mergeable-types)))
 
