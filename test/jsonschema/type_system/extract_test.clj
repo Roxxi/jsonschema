@@ -29,11 +29,12 @@
   (testing "No special predicates as of now"))
 
 (deftest date-predicate-tests
-  (testing "Dates are a class unto themselves..."
+  (testing "Dates are a world unto themselves..."
     (let [pred (clojure-predicator ["yyyy-MM-dd" "yyyy.MM.dd HH:mm:ss"])]
       (is (date? pred "2013-01-01"))
       (is (date? pred "2013.01.01 12:00:00"))
       (is (not (date? pred "2013.01.01")))
+      (is (not (date? pred "2013.01.01 12")))
       (is (not (date? pred "2013/01/01")))
       (is (date? pred "2013-01-01asdf")
           "Unexpected, I know, but Java DateFormats will happily parse strings
@@ -43,10 +44,19 @@
            This actually matches yyyy-MM-dd, NOT yyyy.MM.dd HH:mm:ss."))))
 
 (deftest date-extract-tests
-  (testing "Dates are a class unto themselves..."
-    (let [ex (clojure-type-extractor merge-reducer
-                                     ["yyyy-MM-dd" "yyyy.MM.dd HH:mm:ss"])]
-)))
+  (testing "Dates are a world unto themselves... Same test strings as in
+date-predicate-tests, if you didn't notice."
+    (let [pattern1 "yyyy-MM-dd"
+          pattern2 "yyyy.MM.dd HH:mm:ss"
+          extractor (clojure-type-extractor merge-reducer [pattern1 pattern2])
+          extract #(extract extractor %)]
+      (is (= (extract "2013-01-01") (make-date [pattern1])))
+      (is (= (extract "2013.01.01 12:00:00") (make-date [pattern2])))
+      (is (= (extract "2013.01.01") (make-str "2013.01.01")))
+      (is (= (extract "2013.01.01 12") (make-str "2013.01.01 12")))
+      (is (= (extract "2013/01/01") (make-str "2013/01/01")))
+      (is (= (extract "2013-01-01asdf") (make-date [pattern1])))
+      (is (= (extract "2013-01-01 12:00:00") (make-date [pattern1]))))))
 
 (def predy (clojure-predicator (vector date-format-pattern)))
 
