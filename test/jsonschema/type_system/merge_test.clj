@@ -1,6 +1,6 @@
 (ns jsonschema.type-system.merge-test
-  (:use clojure.test
-        jsonschema.type-system.types)
+  (:require [clojure.test :refer :all]
+            [jsonschema.type-system.types :refer :all])
   (:require [jsonschema.type-system.merge-common :refer [type-merge]]
             [jsonschema.type-system.merge :refer [type-merger
                                                   merge-types
@@ -31,7 +31,7 @@
   ([x1 x2 result]
      `(is (= (type-merge merger ~x1 ~x2) ~result)))
   ([x1 x2 result comment]
-     `(is (= (type-merge merger ~x1 ~x2) ~result) comment)))
+     `(is (= (type-merge merger ~x1 ~x2) ~result) comment)))b
 
 ;; # Canonical Examples of data types
 ;;

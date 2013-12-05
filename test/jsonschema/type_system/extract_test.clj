@@ -1,8 +1,8 @@
 (ns jsonschema.type-system.extract-test
-  (:use clojure.test
-        clojure.pprint
-        jsonschema.type-system.types
-        cheshire.core)
+  (:require [clojure.test :refer :all]
+            [clojure.pprint :refer :all]
+            [jsonschema.type-system.types :refer :all]
+            [cheshire.core :refer :all])
   (:require [jsonschema.type-system.merge :refer [merge-reducer]]
             [jsonschema.type-system.simplify :refer [simplify-reducer]]
             [jsonschema.type-system.extract
@@ -34,6 +34,7 @@
       (is (not (date? pred "2013.01.01")))
       (is (not (date? pred "2013.01.01 12")))
       (is (not (date? pred "2013/01/01")))
+      (is (not (date? pred "asdf2013/01/01")))
       (is (date? pred "2013-01-01asdf")
           "Unexpected, I know, but Java DateFormats will happily parse strings
            that BEGIN with the right pattern...")
@@ -46,18 +47,63 @@
 date-predicate-tests, if you didn't notice."
     (let [pattern1 "yyyy-MM-dd"
           pattern2 "yyyy.MM.dd HH:mm:ss"
-          extractor (clojure-type-extractor merge-reducer [pattern1 pattern2])
-          extract #(extract extractor %)]
-      (is (= (extract "2013-01-01") (make-date [pattern1])))
-      (is (= (extract "2013.01.01 12:00:00") (make-date [pattern2])))
-      (is (= (extract "2013.01.01") (make-str "2013.01.01")))
-      (is (= (extract "2013.01.01 12") (make-str "2013.01.01 12")))
-      (is (= (extract "2013/01/01") (make-str "2013/01/01")))
-      (is (= (extract "2013-01-01asdf") (make-date [pattern1])))
-      (is (= (extract "2013-01-01 12:00:00") (make-date [pattern1])))
-      ;; and one extra test for the road
-      (is (= (extract ["2013-01-01" "2013.01.01 12:00:00"])
-             (make-collection (make-date [pattern1 pattern2])))))))
+          date1 "2013-01-01"
+          date2 "2013.01.01 12:00:00"
+          merge-extractor (clojure-type-extractor merge-reducer
+                                                  [pattern1 pattern2])
+          merge-extract #(extract merge-extractor %)
+          simplify-extractor (clojure-type-extractor simplify-reducer
+                                                     [pattern1 pattern2])
+          simplify-extract #(extract simplify-extractor %)]
+      (is (= (merge-extract date1) (make-date-with pattern1)))
+      (is (= (merge-extract date2) (make-date-with pattern2)))
+      (is (= (merge-extract "2013.01.01") (make-str "2013.01.01")))
+      (is (= (merge-extract "2013.01.01 12") (make-str "2013.01.01 12")))
+      (is (= (merge-extract "2013/01/01") (make-str "2013/01/01")))
+      (is (= (merge-extract "asdf2013/01/01") (make-str "asdf2013/01/01")))
+      (is (= (merge-extract "2013-01-01asdf") (make-date-with pattern1)))
+      (is (= (merge-extract "2013-01-01 12:00:00") (make-date-with pattern1)))
+      ;; and some extra tests for the road
+      (is (= (merge-extract [date1])
+             (make-collection (make-date-with pattern1))))
+      (is (= (merge-extract [date1 date2])
+             (make-collection (make-date-with pattern1 pattern2))))
+      (is (= (merge-extract [[date1] [date2] [date1 date2]])
+             (make-collection
+              (make-collection (make-date-with pattern1 pattern2)))))
+      (is (= (merge-extract [[1] [date1] [date2]])
+             (make-collection
+              (make-union-with
+               (make-collection (make-int 1))
+               (make-collection (make-date-with pattern1 pattern2))))))
+      (is (= (merge-extract [[date1 3.14] [date2 6.28]])
+             (make-collection
+              (make-collection
+               (make-union-with
+                (make-date-with pattern1 pattern2)
+                (make-real 3.14 6.28))))))
+      (is (= (simplify-extract [[date1 3.14] [date2 5] ["a" 6.28 10]])
+             (make-collection
+              (make-collection
+               (make-union-with
+                (make-int 5 10)
+                (make-real 3.14 6.28)
+                (make-date-with pattern1 pattern2)
+                (make-str "a"))))))
+      (is (= (simplify-extract [[1] [date1] [date2]])
+             (make-collection
+              (make-collection
+               (make-union-with (make-int 1)
+                                (make-date-with pattern1 pattern2))))))
+      (is (= (merge-extract {:a date1})
+             (make-document {:a (make-date-with pattern1)})))
+      (is (= (merge-extract [{:a date1} {:a date2}])
+             (make-collection
+              (make-document {:a (make-date-with pattern1 pattern2)}))))
+      (is (= (simplify-extract [{:a date1} {:a date2 :b date1}])
+             (make-collection
+              (make-document {:a (make-date-with pattern1 pattern2)
+                              :b (make-date-with pattern1)})))))))
 
 (def- date-format-pattern "yyyy-MM-dd")
 
@@ -79,7 +125,7 @@ date-predicate-tests, if you didn't notice."
   (testing "Testing the ClojureTypePredicator"
     (p-is null? nil)
     (p-is-not null? 5)
-    (p-is-not special? "I'm not special")
+    (p-is-not special? "I'm not Special")
     (p-is-not str? "2013-01-01" "It's special, it shouldn't be a string.")
     (p-is str? "hello!")
     (p-is str? "date(")

@@ -1,6 +1,6 @@
 (ns jsonschema.type-system.simplify-test
-  (:use clojure.test
-        jsonschema.type-system.types)
+  (:require [clojure.test :refer :all]
+            [jsonschema.type-system.types :refer :all])
   (:require [jsonschema.type-system.merge-common :as m]
             [jsonschema.type-system.simplify :refer [type-simplifier
                                                      simplify-reducer
