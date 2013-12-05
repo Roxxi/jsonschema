@@ -28,6 +28,26 @@
 (deftest special-predicate-tests
   (testing "No special predicates as of now"))
 
+(deftest date-predicate-tests
+  (testing "Dates are a class unto themselves..."
+    (let [pred (clojure-predicator ["yyyy-MM-dd" "yyyy.MM.dd HH:mm:ss"])]
+      (is (date? pred "2013-01-01"))
+      (is (date? pred "2013.01.01 12:00:00"))
+      (is (not (date? pred "2013.01.01")))
+      (is (not (date? pred "2013/01/01")))
+      (is (date? pred "2013-01-01asdf")
+          "Unexpected, I know, but Java DateFormats will happily parse strings
+           that BEGIN with the right pattern...")
+      (is (date? pred "2013-01-01 12:00:00")
+          "Same as above with `asdf`...
+           This actually matches yyyy-MM-dd, NOT yyyy.MM.dd HH:mm:ss."))))
+
+(deftest date-extract-tests
+  (testing "Dates are a class unto themselves..."
+    (let [ex (clojure-type-extractor merge-reducer
+                                     ["yyyy-MM-dd" "yyyy.MM.dd HH:mm:ss"])]
+)))
+
 (def predy (clojure-predicator (vector date-format-pattern)))
 
 (defmacro p-is
