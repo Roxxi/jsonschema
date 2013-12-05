@@ -23,8 +23,6 @@
               collection?]]
             [roxxi.utils.common :refer [def-]]))
 
-(def- date-format-pattern "yyyy-MM-dd")
-
 (deftest special-predicate-tests
   (testing "No special predicates as of now"))
 
@@ -56,7 +54,12 @@ date-predicate-tests, if you didn't notice."
       (is (= (extract "2013.01.01 12") (make-str "2013.01.01 12")))
       (is (= (extract "2013/01/01") (make-str "2013/01/01")))
       (is (= (extract "2013-01-01asdf") (make-date [pattern1])))
-      (is (= (extract "2013-01-01 12:00:00") (make-date [pattern1]))))))
+      (is (= (extract "2013-01-01 12:00:00") (make-date [pattern1])))
+      ;; and one extra test for the road
+      (is (= (extract ["2013-01-01" "2013.01.01 12:00:00"])
+             (make-collection (make-date [pattern1 pattern2])))))))
+
+(def- date-format-pattern "yyyy-MM-dd")
 
 (def predy (clojure-predicator (vector date-format-pattern)))
 
