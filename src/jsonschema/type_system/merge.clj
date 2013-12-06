@@ -11,8 +11,8 @@ Two unions are only merge-compatible if all of their contents are
             [jsonschema.type-system.merge-common :refer
              [type-merge
               make-type-merger
+              congruent?
               incongruent?
-              merge-compatible?
               reduce-compatible-types
               turn-into-a-union-with]]
             [clojure.set :refer [union]]))
@@ -75,7 +75,7 @@ Two unions are only merge-compatible if all of their contents are
    c1 ;; either, really.
    (or (empty-collection? c1) (empty-collection? c2))
    (make-union-with c1 c2)
-   (merge-compatible? (:coll-of c1) (:coll-of c2))
+   (congruent? (:coll-of c1) (:coll-of c2))
    (make-collection (merge-two-types (:coll-of c1) (:coll-of c2)))
    :else
    (make-union-with c1 c2)))
@@ -135,4 +135,4 @@ Two unions are only merge-compatible if all of their contents are
   (type-merge (type-merger) t1 t2))
 
 (defn merge-reducer [types]
-  (reduce-compatible-types types merge-compatible? merge-two-types))
+  (reduce-compatible-types types congruent? merge-two-types))

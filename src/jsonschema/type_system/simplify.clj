@@ -12,7 +12,6 @@ Any pair of unions are simplify-compatible."
             [jsonschema.type-system.merge-common :refer
              [type-merge
               make-type-merger
-              simplify-compatible?
               turn-into-a-union-with
               reduce-compatible-types]]))
 
@@ -98,4 +97,8 @@ Any pair of unions are simplify-compatible."
   (type-merge (type-simplifier) t1 t2))
 
 (defn simplify-reducer [types]
-  (reduce-compatible-types types simplify-compatible? simplify-two-types))
+  (let [mergeable? (fn [t1 t2]
+                     (or (union-type? t1)
+                         (union-type? t2)
+                         (same-type? t1 t2)))]
+    (reduce-compatible-types types mergeable? simplify-two-types)))

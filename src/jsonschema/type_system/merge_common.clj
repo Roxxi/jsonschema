@@ -31,17 +31,9 @@
 (defn make-type-merger [type*type=>merge-fn]
   (TypeMergerImpl. type*type=>merge-fn))
 
-;; # Predicates
-
-(defn congruent? [d1 d2]
-  (= (:properties d1) (:properties d2)))
-
-(defn incongruent? [d1 d2]
-  (not (congruent? d1 d2)))
-
 ;; # Generic type-compatibility
 
-(defn- type-dispatcher [t1 t2 merge-notion]
+(defn- type-dispatcher [t1 t2]
   (cond
    (or (union-type? t1) (union-type? t2))
    :union
@@ -54,7 +46,7 @@
    (and (satisfies? Typeable t1) (satisfies? Typeable t2))
    :non-mergeable-types))
 
-(defmulti compatible?
+(defmulti congruent?
   "There are two outcomes when you try to merge types:
  1) The merge result has the same type as one or both input types
     (possibly with different Scalar metadata)
@@ -68,58 +60,47 @@ More generally, the question 'Are a and b compatible?' can be interpreted
 as 'Under a particular notion of merging types, do a and b look alike?'"
   #^{:private true} type-dispatcher)
 
-(defmethod compatible? :scalar [t1 t2 merge-notion]
-  (same-type? t1 t2))
+(defn incongruent? [t1 t2]
+  (not (congruent? t1 t2)))
 
-(defmethod compatible? :document [t1 t2 merge-notion]
-  (condp = merge-notion
-    :merge (congruent? t1 t2)
-    :simplify true))
+(defmethod congruent? :scalar [s1 s2]
+  (same-type? s1 s2))
 
-(defmethod compatible? :collection [t1 t2 merge-notion]
-  (condp = merge-notion
-    :merge (cond
-            (and (empty-collection? t1) (empty-collection? t2)) true
-            (or (empty-collection? t1) (empty-collection? t2)) false
-            :else (compatible? (:coll-of t1) (:coll-of t2) merge-notion))
-    :simplify true))
+(defmethod congruent? :document [d1 d2]
+  (= (:properties d1) (:properties d2)))
 
-(defmethod compatible? :union [t1 t2 merge-notion]
-  (condp = merge-notion
-    :merge
-    (and (union-type? t1)
-         (union-type? t2)
-         (every? true? (map
-                        (fn [union-element]
-                          (some #(compatible? union-element % merge-notion)
-                                (:union-of t2)))
-                        (:union-of t1)))
-         (every? true? (map
-                        (fn [union-element]
-                          (some #(compatible? union-element % merge-notion)
-                                (:union-of t1)))
-                        (:union-of t2))))
-    :simplify
-    true))
+(defmethod congruent? :collection [c1 c2]
+  (cond
+   (and (empty-collection? c1) (empty-collection? c2)) true
+   (or (empty-collection? c1) (empty-collection? c2)) false
+   :else (congruent? (:coll-of c1) (:coll-of c2))))
 
-(defmethod compatible? :non-mergeable-types [t1 t2 merge-notion]
+(defmethod congruent? :union [t1 t2]
+  (and (union-type? t1)
+       (union-type? t2)
+       (every? true? (map
+                      (fn [union-element]
+                        (some #(congruent? union-element %)
+                              (:union-of t2)))
+                      (:union-of t1)))
+       (every? true? (map
+                      (fn [union-element]
+                        (some #(congruent? union-element %)
+                              (:union-of t1)))
+                      (:union-of t2)))))
+
+(defmethod congruent? :non-mergeable-types [t1 t2]
   false)
 
-(defmethod compatible? :default [t1 t2 merge-notion]
+(defmethod congruent? :default [t1 t2]
   (throw (RuntimeException.
           (str "Don't know how to decide if these two objects "
                "are compatible: " t1 ", " t2))))
 
-(defn merge-compatible? [t1 t2]
-  (compatible? t1 t2 :merge))
-
-(defn simplify-compatible? [t1 t2]
-  (compatible? t1 t2 :simplify))
-
 ;; # Generic type-reducer
 
 (defn reduce-compatible-types [arbitrary-unmerged-types
-                               compatible?
+                               mergeable?
                                merge-two-compatible-things]
   "If input is [a1 a2 b1 c1 a3 c2], then output
 is [merged(a1 a2 a3) b1 merged(c1 c2)]
@@ -129,19 +110,18 @@ does not assume that
      If (compatible? a b) and (compatible? b c)), then (compatible? a c).
 A consequence of this is, it's O(n^2) to reduce-compatible-types.
 
-This is to accommodate for 'simplify' behavior. If you try to
-reduce-simplify-compatible-types on
+This is to accommodate for 'simplify' behavior. If you use a simplify-reducer on
    [[1] [\"a\"] [2 \"b\"]]
 then you should get collection(collection(union(string, integer))).
 
-Yet, we see that even though [1] and [2 \"b\"] are simplify-compatible
-and [\"a\"] and [2 \"b\"] are simplify-compatible,
-it holds that [1] and [\"a\"] are NOT simplify-compatible...
+Yet, we see that even though [1] and [2 \"b\"] are simplify-mergeable
+and [\"a\"] and [2 \"b\"] are simplify-mergeable,
+it holds that [1] and [\"a\"] are NOT simplify-mergeable...
 
-So simplify-compatible? is not transitive!"
+So for simplify, mergeable? is not transitive!"
   (reduce (fn [merged-types type]
-            (let [incompatibles (remove #(compatible? type %) merged-types)
-                  compatibles (filter #(compatible? type %) merged-types)
+            (let [incompatibles (remove #(mergeable? type %) merged-types)
+                  compatibles (filter #(mergeable? type %) merged-types)
                   merged-compatibles (reduce merge-two-compatible-things
                                              type
                                              compatibles)]
