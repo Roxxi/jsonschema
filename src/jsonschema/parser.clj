@@ -1,8 +1,8 @@
 (ns jsonschema.parser
   {:author "Alex Bahouth"
    :date "December 2012"}
-  (:require [roxxi.utils.print :refer :all]
-            [roxxi.utils.collections :refer :all])
+  (:require [roxxi.utils.print :refer [print-expr]]
+            [roxxi.utils.collections :refer [project-map]])
   (:require [cheshire.core :refer [parse-string]]))
 
 
@@ -31,7 +31,7 @@
 (defn- first-and-last-char-are [str-val first-c last-c]
   (and
    (= (get str-val 0) first-c)
-   (= (get str-val (- (count str-val) 1)) last-c)))
+   (= (get str-val (dec (count str-val))) last-c)))
 
 (defn- array-ish? [str-val]
   (first-and-last-char-are str-val \[ \]))
@@ -49,7 +49,7 @@
 
 
 
-(defn- parsed-if-parsed [val]
+(defn parsed-if-parsed [val]
   (when (not (string? val))
     val))
 
@@ -59,7 +59,7 @@
 ;; Clojure can support bigger integers than this
 ;; but, let's assume that this might be used
 ;; by non-clojure code, and that there's a 64 bit max.
-(defn- number-if-number [val]
+(defn number-if-number [val]
   (and (string? val)
        (or (re-matches #"(^[\-]?[1-9]\d*$)|(^[\-]?0$)" val)
            (re-matches #"(^[\-]?[1-9]\d*\.\d+$)|(^[\-]?0\.\d+$)" val))
@@ -142,4 +142,4 @@
 (defn parse-json-strings [json-strings
                           & {:keys [string-transform]
                              :or {string-transform identity}}]
-  (map #(parse-json-string %  :string-transform string-transform) json-strings))
+  (map #(parse-json-string % :string-transform string-transform) json-strings))

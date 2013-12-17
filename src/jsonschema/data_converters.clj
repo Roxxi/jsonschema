@@ -1,19 +1,19 @@
 (ns jsonschema.data-converters
   "Functions that up-convert scalar data of one type,
 to scalar data of another type"
-  (:use roxxi.utils.print
-        roxxi.utils.collections
-        jsonschema.type-system.types)
-  (:require [clojure.math.numeric-tower :as num-tower]))
+  (:require [clojure.math.numeric-tower :as num-tower]
+            [roxxi.utils.print :refer [print-expr]]
+            [roxxi.utils.collections :refer [project-map]]
+            [jsonschema.type-system.types :refer [document-type?]]))
 
-(defn- ->null [datum]  
+(defn- ->null [datum]
   nil)
 
 (defn- boolean? [datum]
   (or (true? datum) (false? datum)))
 
 (defn- ->bool [datum]
-  (cond (nil? datum) nil        
+  (cond (nil? datum) nil
         datum true
         :else false))
 
@@ -24,7 +24,7 @@ to scalar data of another type"
   (cond
    ;; There are contexts where statistical rounding might be more approriate.
    ;; But for now, we'll go with the poor-man's approach.
-   (number? datum) (num-tower/round datum)       
+   (number? datum) (num-tower/round datum)
    (boolean? datum) (if (->bool datum) 1 0)
    :else (->null datum)))
 
@@ -42,13 +42,13 @@ to scalar data of another type"
    :bool   ->bool
    :int    ->integer
    :real   ->real
-   :string ->str
+   :str    ->str
    :date   ->str
    :id     ->str})
-  
+
 (def type=>converter
   (project-map type-desc=>converter
-               :key-xform make-scalar))
+               :key-xform #(symbol (str "make-" (name %)))))
 
 
 (defn make-type-converters [field-name=>type-or-doc]

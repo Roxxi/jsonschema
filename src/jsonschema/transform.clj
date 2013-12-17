@@ -1,8 +1,15 @@
 (ns jsonschema.transform
-  "Transformations to apply to schemas"  
-  (:use roxxi.utils.print
-        roxxi.utils.collections
-        jsonschema.type-system.types))
+  "Transformations to apply to schemas"
+  (:require [roxxi.utils.print :refer [print-expr]]
+            [roxxi.utils.collections :refer [project-map]]
+            [jsonschema.type-system.types :refer [scalar-type?
+                                                  document-type?
+                                                  union-type?
+                                                  collection-type?
+                                                  empty-document?
+                                                  make-str
+                                                  make-document
+                                                  getType]]))
 
 ;; # Table Transform
 ;; Transforming schemas that are almost flat document maps
@@ -26,22 +33,19 @@ to define a database table."
               (every? union-only-contains-scalars? union-properties)))))
 
 
-;; the order here is implicit such that
+;; The order here is implicit such that
 ;; type-rollup[n] can be encompassed by type-rollup[n+1]
-(def type-rollup [:null :bool :int :real :string])
-
-(defn- negative? [x]
-  (< x 0))
+(def type-rollup [:null :bool :int :real :str])
 
 (defn genericize-types [type1 type2]
   (let [i1 (.indexOf type-rollup (getType type1))
         i2 (.indexOf type-rollup (getType type2))]
-    (if (or (negative? i1) (negative? i2))
+    (if (or (neg? i1) (neg? i2))
       ;; TODO This is a cop-out, but what else can we do?
       ;; Don't know...
-      (make-scalar :string)
+      (make-str "")
       (if (< i1 i2) type2 type1))))
-      
+
 (defn collapse-union [union-type]
   (reduce genericize-types (:union-of union-type)))
 
@@ -49,7 +53,7 @@ to define a database table."
   (if (scalar-type? scalar-or-union-type)
     scalar-or-union-type
     (collapse-union scalar-or-union-type)))
-  
+
 (defn- document-collapse-unions [document-type]
   "A precondition of calling this function is that
 you've already established you're passing it a document type"
@@ -62,9 +66,3 @@ you've already established you're passing it a document type"
 document schema with no unions based on some arbitrary logic..."
   (and (type-translatable-to-table-schema? type)
        (document-collapse-unions type)))
-    
-
-
-
-
-

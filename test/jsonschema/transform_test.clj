@@ -1,10 +1,12 @@
 (ns jsonschema.transform-test
   (:use clojure.test
         roxxi.utils.print
-        jsonschema.transform        
-        jsonschema.type-system.extract)
-  (:require [jsonschema.type-system.simplify :as s]
+        jsonschema.transform)
+  (:require [jsonschema.type-system.extract :refer [extract-type-merging]]
+            [jsonschema.type-system.simplify :as s]
             [jsonschema.type-system.merge :as m]))
+
+(def extract-type extract-type-merging)
 
 (deftest schema-translatability []
   (testing "Ensuring the following schemas are NOT translatable to a
@@ -25,7 +27,7 @@ database table"
            false (extract-type {:p1 "hello" :nested {:n1 "nested"}})
            false (extract-type {:p1 "hello" :coll [nil 5 "hello"]})
            false (s/simplify-types
-                  ;; union on both parameters, where the latter union 
+                  ;; union on both parameters, where the latter union
                   ;; contains two doc types
                   (extract-type {:p1 10 :nested {:n1 5}})
                   (extract-type {:p1 "hello" :nested {:n1 "nested"}}))
@@ -57,35 +59,22 @@ database table"
 a schema suitable for a Database table"
     ;; ex 1
     (is (= (db-tablify-type (extract-type {:col1 "hello"}))
-           #jsonschema.type_system.types.Document{:properties [:col1],
-                                                  :map {:col1 #jsonschema.type_system.types.Scalar{:type :string}}}))
+           #jsonschema.type_system.types.Document{:properties #{:col1}, :map {:col1 #jsonschema.type_system.types.Str{:min 5, :max 5}}}))
     ;; ex2
     (is (= (db-tablify-type (extract-type {:col1 "hello" :col2 10 :col3 5.5 :col4 nil}))
-           #jsonschema.type_system.types.Document{:properties [:col4 :col1 :col3 :col2],
-                                                  :map {:col4 #jsonschema.type_system.types.Scalar{:type :null},
-                                                        :col1 #jsonschema.type_system.types.Scalar{:type :string},
-                                                        :col3 #jsonschema.type_system.types.Scalar{:type :real},
-                                                        :col2 #jsonschema.type_system.types.Scalar{:type :int}}}))
+           #jsonschema.type_system.types.Document{:properties #{:col4 :col1 :col3 :col2}, :map {:col4 #jsonschema.type_system.types.Null{}, :col1 #jsonschema.type_system.types.Str{:min 5, :max 5}, :col3 #jsonschema.type_system.types.Real{:min 5.5, :max 5.5}, :col2 #jsonschema.type_system.types.Int{:min 10, :max 10}}}))
     ;; ex3
     (is (= (db-tablify-type
             (s/simplify-types
              (extract-type {:col1 10 :col2 "10.5"})
              (extract-type {:col1 "hello" :col2 12.8})))
-           #jsonschema.type_system.types.Document{:properties [:col1 :col2],
-                                                  :map {:col1 #jsonschema.type_system.types.Scalar{:type :string},
-                                                        :col2 #jsonschema.type_system.types.Scalar{:type :string}}}
-           ))
+           #jsonschema.type_system.types.Document{:properties #{:col1 :col2}, :map {:col1 #jsonschema.type_system.types.Str{:min 5, :max 5}, :col2 #jsonschema.type_system.types.Str{:min 4, :max 4}}}))
     ;; ex4
     (is (= (db-tablify-type
             (s/simplify-types
              (extract-type {:col1 10 :col2 "10.5" :col3 nil :col4 18})
              (extract-type {:col1 "hello" :col2 12.8})))
-           #jsonschema.type_system.types.Document{:properties [:col4 :col1 :col3 :col2],
-                                                  :map {:col4 #jsonschema.type_system.types.Scalar{:type :int},
-                                                        :col1 #jsonschema.type_system.types.Scalar{:type :string},
-                                                        :col3 #jsonschema.type_system.types.Scalar{:type :null},
-                                                        :col2 #jsonschema.type_system.types.Scalar{:type :string}}}
-           ))
+           #jsonschema.type_system.types.Document{:properties #{:col4 :col1 :col3 :col2}, :map {:col4 #jsonschema.type_system.types.Int{:min 18, :max 18}, :col1 #jsonschema.type_system.types.Str{:min 5, :max 5}, :col3 #jsonschema.type_system.types.Null{}, :col2 #jsonschema.type_system.types.Str{:min 4, :max 4}}}))
     ;; ex5
     (is (= (db-tablify-type
             (s/simplify-types
@@ -94,17 +83,4 @@ a schema suitable for a Database table"
              (extract-type {:col1 1    :col2 1    :col3 1})
              (extract-type {:col1 5.5  :col2 5.5 })
              (extract-type {:col1 "hi"})))
-           #jsonschema.type_system.types.Document{:properties [:col4 :col5 :col1 :col3 :col2],
-                                                  :map {:col1 #jsonschema.type_system.types.Scalar{:type :string},
-                                                        :col2 #jsonschema.type_system.types.Scalar{:type :real},
-                                                        :col3 #jsonschema.type_system.types.Scalar{:type :int},
-                                                        :col4 #jsonschema.type_system.types.Scalar{:type :bool},
-                                                        :col5 #jsonschema.type_system.types.Scalar{:type :null}}}))))
-         
-
-
-
-
-                  
-
-
+           #jsonschema.type_system.types.Document{:properties #{:col4 :col5 :col1 :col3 :col2}, :map {:col4 #jsonschema.type_system.types.Bool{}, :col5 #jsonschema.type_system.types.Null{}, :col1 #jsonschema.type_system.types.Str{:min 2, :max 2}, :col3 #jsonschema.type_system.types.Int{:min 1, :max 1}, :col2 #jsonschema.type_system.types.Real{:min 5.5, :max 5.5}}}))))

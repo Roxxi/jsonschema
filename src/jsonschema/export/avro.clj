@@ -1,16 +1,16 @@
 (ns jsonschema.export.avro
-  "Translating a schema into an avro parsable format"  
-  (:use roxxi.utils.print
-        roxxi.utils.collections
-        jsonschema.type-system.types
-        simple-avro.schema))
+  "Translating a schema into an avro parsable format"
+  (:use simple-avro.schema)
+  (:require [roxxi.utils.print :refer [print-expr]]
+            [roxxi.utils.collections :refer [project-map]]
+            [jsonschema.type-system.types :refer [getType]])
 
 
 (defmulti rewrite-type
   "Translates a schema-type into a corresponding avro type"
   (fn [type] (getType type)))
 
-(defmethod rewrite-type :null [type] 
+(defmethod rewrite-type :null [type]
   avro-null)
 (defmethod rewrite-type :bool [type]
   avro-boolean)
@@ -18,7 +18,7 @@
   avro-long)
 (defmethod rewrite-type :real [type]
   avro-float)
-(defmethod rewrite-type :string [type]
+(defmethod rewrite-type :str [type]
   avro-string)
 
 (defmethod rewrite-type :collection [type]
@@ -39,4 +39,3 @@
 
 (defmethod rewrite-type :union [type]
   (apply avro-union (map rewrite-type (:union-of type))))
-                           
