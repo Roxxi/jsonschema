@@ -6,4 +6,5 @@
                  [roxxi/clojure-common-utils "0.0.18"]
                  [cheshire "4.0.3"]
                  [roxxi/simple-avro "0.0.6"]
-                 [org.clojure/math.numeric-tower "0.0.2"]])
+                 [org.clojure/math.numeric-tower "0.0.2"]
+                 [slingshot "0.10.3"]])
