@@ -3,7 +3,7 @@
   (:use simple-avro.schema)
   (:require [roxxi.utils.print :refer [print-expr]]
             [roxxi.utils.collections :refer [project-map]]
-            [jsonschema.type-system.types :refer [getType]])
+            [jsonschema.type-system.types :refer [getType]]))
 
 
 (defmulti rewrite-type
