@@ -2,9 +2,11 @@
   "Functions that up-convert scalar data of one type,
 to scalar data of another type"
   (:require [clojure.math.numeric-tower :as num-tower]
+            [roxxi.utils.common :refer [def-]]
             [roxxi.utils.print :refer [print-expr]]
             [roxxi.utils.collections :refer [project-map]]
-            [jsonschema.type-system.types :refer [document-type?]]))
+            [jsonschema.type-system.types :refer [document-type?
+                                                  getType]]))
 
 (defn- ->null [datum]
   nil)
@@ -37,7 +39,7 @@ to scalar data of another type"
   (cond (nil? datum) nil
         :else (str datum)))
 
-(def type-desc=>converter
+(def- type-desc=>converter
   {:null   ->null
    :bool   ->bool
    :int    ->integer
@@ -46,14 +48,9 @@ to scalar data of another type"
    :date   ->str
    :id     ->str})
 
-(def type=>converter
-  (project-map type-desc=>converter
-               :key-xform #(symbol (str "make-" (name %)))))
-
-
 (defn make-type-converters [field-name=>type-or-doc]
   (let [field-name=>type (if (document-type? field-name=>type-or-doc)
-                          (:map field-name=>type-or-doc)
-                          field-name=>type-or-doc)]
+                           (:map field-name=>type-or-doc)
+                           field-name=>type-or-doc)]
     (project-map field-name=>type
-                 :value-xform #(get type=>converter %))))
+                 :value-xform #(get type-desc=>converter (getType %)))))
