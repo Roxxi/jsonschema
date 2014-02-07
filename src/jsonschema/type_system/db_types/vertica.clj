@@ -15,6 +15,7 @@
 (declare col-def-str->length-str)
 (declare col-def-str->col-type-length)
 (declare col-def-str-is-unsigned?)
+(declare min-or-default-num)
 
 ;; type mapping
 (def col-type->json-type-kw
@@ -30,6 +31,9 @@
    "varbinary" :binary
    "bytea" :binary
    "raw" :binary
+   "character" :str
+   "char" :str
+   "
  })
 
 (defmulti col-map->json-type
@@ -84,11 +88,6 @@ Otherwise, pass binary type through."
     (get bin-synonym->bin-type-kw vrt-type-kw)
     vrt-type-kw))
 
-(defn- min-or-default-num [n-val n-default-val n-max-val]
-  "If n-val is nil, return the n-default-val. If val is NOT nil,
-return the minimum of n-val and n-max-val"
-  (if (nil? n-val) n-default-val (min n-val n-max-val)))
-
 (defn- bin-type-length->max-length [vrt-type-kw col-length]
   "Determine correct column length given binary type and provided length"
   (cond
@@ -117,7 +116,10 @@ return the minimum of n-val and n-max-val"
 ;; CHARACTER
 ;; CHAR
 ;; VARCHAR
-;; Only some MySQL string types have implicit max length
+
+(defmethod col-map->json-type :str [col-map]
+  (let [n-length (str-type-length->max (:mysql-type-kw col-map) (:col-length col-map))]
+    (json-types/make-str 0 n-length)))
 
 ;;;;;;;;;;;;;;;; DATE TYPES ;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -126,8 +128,6 @@ return the minimum of n-val and n-max-val"
 ;; DATETIME
 ;; SMALLDATETIME
 ;; TIME
-;; TIME
-;; TIMESTAMP
 ;; TIMESTAMP
 ;; INTERVAL
 ;; APPROXIMATE
@@ -152,6 +152,11 @@ return the minimum of n-val and n-max-val"
 
 ;; Common functions
 ;; TODO: Refactor. Lots of duplication here with mysql.clj common functions
+(defn- min-or-default-num [n-val n-default-val n-max-val]
+  "If n-val is nil, return the n-default-val. If val is NOT nil,
+return the minimum of n-val and n-max-val"
+  (if (nil? n-val) n-default-val (min n-val n-max-val)))
+
 (defn- col-def-str-is-unsigned? [^String col-def-str]
   (let [str-parts (string/split (string/lower-case col-def-str) #"[\s]+")]
     (and (= 2 (count str-parts)) (= (second str-parts) "unsigned"))))
