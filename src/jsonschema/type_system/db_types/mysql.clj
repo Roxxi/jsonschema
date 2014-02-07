@@ -26,6 +26,7 @@
    "int" :int
    "integer" :int
    "bigint" :int
+   "bit" :int
    "decimal" :real
    "numeric" :real
    "float" :real
@@ -34,6 +35,11 @@
    "varchar" :str
    "blob" :str
    "text" :str
+   "boolean" :bool
+   "bool" :bool
+   "datetime" :date
+   "date" :date
+   "timestamp" :date
  })
 
 (defmulti col-map->json-type
@@ -90,7 +96,6 @@ like {:json-type :int :mysql-type-kw :int_unsigned :col-length 10}"
    :text 65535
 })
 
-
 ;; CHAR
 ;; VARCHAR
 ;; BLOB
@@ -118,11 +123,25 @@ like {:json-type :int :mysql-type-kw :int_unsigned :col-length 10}"
 ;; DATETIME
 ;; TIMESTAMP
 ;; YEAR
+(defn- mysql-type-kw->date-format-pattern [^String date-type-str]
+  (let [date-fmt-str "yyyy-MM-dd"
+        datetime-fmt-str "yyyy-MM-dd HH:mm:ss"]
+    (condp = date-type-str
+      :date "yyyy-MM-dd"
+      :datetime datetime-fmt-str
+      :timestamp datetime-fmt-str)))
+
+(defmethod col-map->json-type :date [col-map]
+  (let [date-fmt-pattern (mysql-type-kw->date-format-pattern
+                          (:mysql-type-kw col-map))]
+    (json-types/make-date date-fmt-pattern)))
 
 ;; BOOLEAN
-;;
 ;; BOOL
+(defmethod col-map->json-type :bool [col-map]
+  (json-types/make-bool))
 
+;; Common
 (defn- col-def-str-is-unsigned? [^String col-def-str]
   (let [str-parts (string/split (string/lower-case col-def-str) #"[\s]+")]
     (and (= 2 (count str-parts)) (= (second str-parts) "unsigned"))))
@@ -159,5 +178,3 @@ like {:json-type :int :mysql-type-kw :int_unsigned :col-length 10}"
   "Transform a mysql column type string (i.e. 'int(10) unsigned') into a JSONSchema type"
   (let [col-map (col-def-str->col-map col-def-str)]
     (col-map->json-type col-map)))
-
-;;(print-expr (col-def-str->col-map "text"))
