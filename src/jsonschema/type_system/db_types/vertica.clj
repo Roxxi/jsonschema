@@ -151,6 +151,7 @@ return the minimum of n-val and n-max-val"
   (json-types/make-real DECIMAL_MIN DECIMAL_MAX))
 
 ;; Common functions
+;; TODO: Refactor. Lots of duplication here with mysql.clj common functions
 (defn- col-def-str-is-unsigned? [^String col-def-str]
   (let [str-parts (string/split (string/lower-case col-def-str) #"[\s]+")]
     (and (= 2 (count str-parts)) (= (second str-parts) "unsigned"))))
