@@ -209,6 +209,18 @@ Otherwise, pass date type through."
 
 ;; "All of the DOUBLE PRECISION data types are synonyms for 64-bit IEEE 754 FLOAT."
 ;; (see: https://my.vertica.com/docs/6.1.x/HTML/index.htm#2587.htm)
+;; DOUBLE PRECISION
+;; FLOAT
+;; FLOAT(n)
+;; FLOAT8
+;; REAL
+
+;; "NUMERIC, DECIMAL, NUMBER, and MONEY are all synonyms that return NUMERIC types."
+;; (see; https://my.vertica.com/docs/6.1.x/HTML/index.htm#12295.htm)
+;; DECIMAL
+;; NUMERIC
+;; NUMBER
+;; MONEY
 
 ;; TODO clean this up to avoid repeated typing of the same kws
 ;; maybe something like:
@@ -232,12 +244,6 @@ Otherwise, pass real type through."
   (if (contains? real-synonym->real-type-kw vrt-type-kw)
     (get real-synonym->real-type-kw vrt-type-kw)
     vrt-type-kw))
-
-;; DOUBLE PRECISION
-;; FLOAT
-;; FLOAT(n)
-;; FLOAT8
-;; REAL
 
 ;; The JVM also uses 64-bit IEEE 754 standard for its Double implementation
 ;; Let's piggyback on that for now
@@ -265,12 +271,6 @@ Otherwise, pass real type through."
    :double {:min MIN_IEEE_754_FLOAT :max MAX_IEEE_754_FLOAT}
    :numeric {:min MIN_NUMERIC_VALUE :max MAX_NUMERIC_VALUE}
    })
-
-;; "NUMERIC, DECIMAL, NUMBER, and MONEY are all synonyms that return NUMERIC types."
-;; DECIMAL
-;; NUMERIC
-;; NUMBER
-;; MONEY
 
 (defmethod col-map->json-type :real [col-map]
   (let [real-type-kw (translate-real-type (:vrt-type-kw col-map))
