@@ -189,7 +189,7 @@ Otherwise, pass type argument through."
     {:min 1 :max coalesced-max}))
 
 (defn- translate-str-type [sqls-type-kw]
-  "If binary type is a synonym, translate to canonical type.
+  "If string type is a synonym, translate to canonical type.
 Otherwise, pass binary type through."
   (if (contains? str-synonym->str-type-kw sqls-type-kw)
     (get str-synonym->str-type-kw sqls-type-kw)
