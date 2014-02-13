@@ -6,16 +6,11 @@
             [clojure.math.numeric-tower :as math]
             [roxxi.utils.print :refer [print-expr]]
             [jsonschema.type-system.types :as json-types]
+            [jsonschema.type-system.db-types.common :as db-common]
             [slingshot.slingshot :as slingshot]))
 
 ;; MySQL 5.1 Type Conversions
-
-;; Some forward declarations
-(declare col-def-str->col-map)
-(declare col-def-str->type-str)
-(declare col-def-str->length-str)
-(declare col-def-str->col-type-length)
-(declare col-def-str-is-unsigned?)
+;;;;;;;;;;;;;;;;;;;;;;; BEGIN TYPE TRANSLATIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; type mapping
 (def col-type->json-type-kw
@@ -44,7 +39,7 @@
 
 (defmulti col-map->json-type
   "Multimethod. Takes a map with column attributes
-like {:json-type :int :mysql-type-kw :int_unsigned :col-length 10}"
+like {:json-type :int :col-type-kw :int_unsigned :col-length 10}"
   (fn [col-map]
     (:json-type col-map)))
 
@@ -73,7 +68,7 @@ like {:json-type :int :mysql-type-kw :int_unsigned :col-length 10}"
    })
 
 (defmethod col-map->json-type :int [col-map]
-  (let [min-max (int-type->min-max (:mysql-type-kw col-map))]
+  (let [min-max (int-type->min-max (:col-type-kw col-map))]
     (json-types/make-int (:min min-max) (:max min-max))))
 
 ;; DECIMAL
@@ -113,7 +108,7 @@ like {:json-type :int :mysql-type-kw :int_unsigned :col-length 10}"
     (Integer. str-length-str)))
 
 (defmethod col-map->json-type :str [col-map]
-  (let [n-length (str-type-length->max (:mysql-type-kw col-map) (:col-length col-map))]
+  (let [n-length (str-type-length->max (:col-type-kw col-map) (:col-length col-map))]
     (json-types/make-str 0 n-length)))
 
 ;; Date
@@ -123,7 +118,7 @@ like {:json-type :int :mysql-type-kw :int_unsigned :col-length 10}"
 ;; DATETIME
 ;; TIMESTAMP
 ;; YEAR
-(defn- mysql-type-kw->date-format-pattern [^String date-type-str]
+(defn- col-type-kw->date-format-pattern [^String date-type-str]
   (let [date-fmt-str "yyyy-MM-dd"
         datetime-fmt-str "yyyy-MM-dd HH:mm:ss"]
     (condp = date-type-str
@@ -132,8 +127,8 @@ like {:json-type :int :mysql-type-kw :int_unsigned :col-length 10}"
       :timestamp datetime-fmt-str)))
 
 (defmethod col-map->json-type :date [col-map]
-  (let [date-fmt-pattern (mysql-type-kw->date-format-pattern
-                          (:mysql-type-kw col-map))]
+  (let [date-fmt-pattern (col-type-kw->date-format-pattern
+                          (:col-type-kw col-map))]
     (json-types/make-date date-fmt-pattern)))
 
 ;; BOOLEAN
@@ -141,40 +136,23 @@ like {:json-type :int :mysql-type-kw :int_unsigned :col-length 10}"
 (defmethod col-map->json-type :bool [col-map]
   (json-types/make-bool))
 
-;; Common
-(defn- col-def-str-is-unsigned? [^String col-def-str]
-  (let [str-parts (string/split (string/lower-case col-def-str) #"[\s]+")]
-    (and (= 2 (count str-parts)) (= (second str-parts) "unsigned"))))
+;;;;;;;;;;;;;; END TYPE TRANSLATIONS ;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn- col-def-str->type-str [col-def-str]
-  (first (string/split col-def-str #"[^\w]+")))
+(defn- col-def-str-and-type-kw->signed-type-kw [^String col-def-str col-type-kw]
+  "Take a column type keyword and the column definition string. If column definition is of an unsigned type,
+ return the unsigned version of the column type keyword.
 
-(defn- col-def-str->length-str [col-def-str]
-  (let [matches (re-find #"\(([0-9,]+)\)" col-def-str)]
-    (if (> (count matches) 1) (second matches) nil)))
-
-(defn- col-def-str->col-type-length [^String col-def-str]
-  (let [col-type-str (col-def-str->type-str col-def-str)
-        col-length-str (col-def-str->length-str col-def-str)]
-    {:col-type col-type-str :col-length col-length-str}))
-
-(defn- col-type-signed-str->mysql-type-kw [col-type-str col-signed-str]
-  (if (nil? col-signed-str)
-    (keyword col-type-str)
-    (keyword (format "%s_%s" col-type-str col-signed-str))))
-
-(defn- col-def-str->col-map [^String col-def-str]
-  "Transform a column definition (i.e. 'int(11)') into map with column attributes"
-  (let [col-signed-str (if (col-def-str-is-unsigned? col-def-str) "unsigned" nil)
-        col-type-length (col-def-str->col-type-length col-def-str)
-        col-type-kw (col-type-signed-str->mysql-type-kw
-                     (:col-type col-type-length) col-signed-str)
-        col-json-type (col-type->json-type-kw (:col-type col-type-length))]
-     {:json-type col-json-type
-      :mysql-type-kw col-type-kw
-      :col-length (:col-length col-type-length)}))
+For example:
+:int and 'int unsigned' -> :int_unsigned
+:tinyint and 'tinyint' -> :tinyint"
+  (if (db-common/col-def-str-is-unsigned? col-def-str)
+    (keyword (format "%s_unsigned" (name col-type-kw)))
+    col-type-kw))
 
 (defn col-type->json-type [^String col-def-str]
   "Transform a mysql column type string (i.e. 'int(10) unsigned') into a JSONSchema type"
-  (let [col-map (col-def-str->col-map col-def-str)]
-    (col-map->json-type col-map)))
+  (let [col-map (db-common/col-def-str->col-map col-def-str col-type->json-type-kw)
+        signed-type-kw (col-def-str-and-type-kw->signed-type-kw col-def-str
+                                                                (:col-type-kw col-map))
+        col-map-with-signed-type-kw (assoc col-map :col-type-kw signed-type-kw)]
+    (col-map->json-type col-map-with-signed-type-kw)))

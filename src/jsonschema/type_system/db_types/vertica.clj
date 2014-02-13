@@ -6,17 +6,18 @@
             [clojure.math.numeric-tower :as math]
             [roxxi.utils.print :refer [print-expr]]
             [jsonschema.type-system.types :as json-types]
+            [jsonschema.type-system.db-types.common :as db-common]
             [slingshot.slingshot :as slingshot]))
 
 ;; Vertica 6 Type Conversions
-;; Some forward declarations
-(declare col-def-str->col-map)
-(declare col-def-str->type-str)
-(declare col-def-str->length-str)
-(declare col-def-str->col-type-length)
-(declare col-def-str-is-unsigned?)
-(declare min-or-default-num)
-(declare str-or-nil->int-or-nil)
+;; ;; Some forward declarations
+;; (declare col-def-str->col-map)
+;; (declare col-def-str->type-str)
+;; (declare col-def-str->length-str)
+;; (declare col-def-str->col-type-length)
+;; (declare col-def-str-is-unsigned?)
+;; (declare min-or-default-num)
+;; (declare str-or-nil->int-or-nil)
 
 ;; type mapping
 ;; TODO: clean this up to avoid duplicated typing
@@ -98,25 +99,25 @@ like {:json-type :int :mysql-type-kw :int_unsigned :col-length 10}"
    :raw :varbinary
    })
 
-(defn- translate-bin-type [vrt-type-kw]
+(defn- translate-bin-type [col-type-kw]
   "If binary type is a synonym, translate to canonical type.
 Otherwise, pass binary type through."
-  (if (contains? bin-synonym->bin-type-kw vrt-type-kw)
-    (get bin-synonym->bin-type-kw vrt-type-kw)
-    vrt-type-kw))
+  (if (contains? bin-synonym->bin-type-kw col-type-kw)
+    (get bin-synonym->bin-type-kw col-type-kw)
+    col-type-kw))
 
-(defn- bin-type-length->max-length [vrt-type-kw col-length]
+(defn- bin-type-length->max-length [col-type-kw col-length]
   "Determine correct column length given binary type and provided length"
   (cond
-   (= vrt-type-kw :binary) (min-or-default-num
+   (= col-type-kw :binary) (db-common/coalesce-with-limit
                             col-length DEFAULT_BINARY_LENGTH MAX_BINARY_LENGTH)
-   (= vrt-type-kw :varbinary) (min-or-default-num
+   (= col-type-kw :varbinary) (db-common/coalesce-with-limit
                                col-length DEFAULT_VARBINARY_LENGTH MAX_BINARY_LENGTH)
    :else nil))
 
 (defmethod col-map->json-type :binary [col-map]
-  (let [bin-type-kw (translate-bin-type (:vrt-type-kw col-map))
-        n-col-length (str-or-nil->int-or-nil (:col-length col-map))
+  (let [bin-type-kw (translate-bin-type (:col-type-kw col-map))
+        n-col-length (db-common/str-or-nil->int-or-nil (:col-length col-map))
         bin-max-length (bin-type-length->max-length
                         bin-type-kw n-col-length)]
     (json-types/make-str bin-max-length bin-max-length)))
@@ -137,12 +138,12 @@ Otherwise, pass binary type through."
    :character :char
    })
 
-(defn- translate-str-type [vrt-type-kw]
+(defn- translate-str-type [col-type-kw]
   "If binary type is a synonym, translate to canonical type.
 Otherwise, pass binary type through."
-  (if (contains? str-synonym->str-type-kw vrt-type-kw)
-    (get str-synonym->str-type-kw vrt-type-kw)
-    vrt-type-kw))
+  (if (contains? str-synonym->str-type-kw col-type-kw)
+    (get str-synonym->str-type-kw col-type-kw)
+    col-type-kw))
 
 (def DEFAULT_CHAR_LENGTH 1)
 (def DEFAULT_VARCHAR_LENGTH 80)
@@ -156,11 +157,11 @@ Otherwise, pass binary type through."
    :else nil))
 
 (defmethod col-map->json-type :str [col-map]
-  (let [n-col-length (str-or-nil->int-or-nil (:col-length col-map))
-        str-type-kw (translate-str-type (:vrt-type-kw col-map))
+  (let [n-col-length (db-common/str-or-nil->int-or-nil (:col-length col-map))
+        str-type-kw (translate-str-type (:col-type-kw col-map))
         [default-length max-length]
         (str-type-kw->default-and-max-length str-type-kw)
-        json-str-length (min-or-default-num
+        json-str-length (db-common/coalesce-with-limit
                          n-col-length default-length max-length)]
     (json-types/make-str json-str-length json-str-length)))
 
@@ -193,15 +194,15 @@ Otherwise, pass binary type through."
 
 ;; TODO: move all these translation behavior into
 ;; a more type-agnostic function
-(defn- translate-date-type [vrt-type-kw]
+(defn- translate-date-type [col-type-kw]
   "If date type is a synonym, translate to canonical type.
 Otherwise, pass date type through."
-  (if (contains? date-synonym->date-type-kw vrt-type-kw)
-    (get date-synonym->date-type-kw vrt-type-kw)
-    vrt-type-kw))
+  (if (contains? date-synonym->date-type-kw col-type-kw)
+    (get date-synonym->date-type-kw col-type-kw)
+    col-type-kw))
 
 (defmethod col-map->json-type :date [col-map]
-  (let [date-type-kw (translate-date-type  (:vrt-type-kw col-map))
+  (let [date-type-kw (translate-date-type  (:col-type-kw col-map))
         date-format-patterns (date-type-kw date-type-kw->date-format-patterns)]
     (json-types/make-date date-format-patterns)))
 
@@ -238,12 +239,12 @@ Otherwise, pass date type through."
    })
 
 ;; TODO: refactor duplicated logic with other translate-*-type functions
-(defn- translate-real-type [vrt-type-kw]
+(defn- translate-real-type [col-type-kw]
   "If real type is a synonym, translate to canonical type.
 Otherwise, pass real type through."
-  (if (contains? real-synonym->real-type-kw vrt-type-kw)
-    (get real-synonym->real-type-kw vrt-type-kw)
-    vrt-type-kw))
+  (if (contains? real-synonym->real-type-kw col-type-kw)
+    (get real-synonym->real-type-kw col-type-kw)
+    col-type-kw))
 
 ;; The JVM also uses 64-bit IEEE 754 standard for its Double implementation
 ;; Let's piggyback on that for now
@@ -273,52 +274,12 @@ Otherwise, pass real type through."
    })
 
 (defmethod col-map->json-type :real [col-map]
-  (let [real-type-kw (translate-real-type (:vrt-type-kw col-map))
+  (let [real-type-kw (translate-real-type (:col-type-kw col-map))
         min-max (real-type-kw real-type-kw->min-max)]
     (json-types/make-real (:min min-max) (:max min-max))))
 
-;; Common functions
-;; TODO: Refactor. Lots of duplication here with mysql.clj common functions
-(defn- str-or-nil->int-or-nil [str-or-nil]
-   (if (nil? str-or-nil) nil
-       (Integer. str-or-nil)))
-
-(defn- min-or-default-num [n-val n-default-val n-max-val]
-  "If n-val is nil, return the n-default-val. If val is NOT nil,
-return the minimum of n-val and n-max-val"
-  (if (nil? n-val) n-default-val (min n-val n-max-val)))
-
-(defn- col-def-str-is-unsigned? [^String col-def-str]
-  (let [str-parts (string/split (string/lower-case col-def-str) #"[\s]+")]
-    (and (= 2 (count str-parts)) (= (second str-parts) "unsigned"))))
-
-(defn- col-def-str->type-str [col-def-str]
-  (first (string/split col-def-str #"[^\w]+")))
-
-(defn- col-def-str->length-str [col-def-str]
-  (let [matches (re-find #"\(([0-9,]+)\)" col-def-str)]
-    (if (> (count matches) 1) (second matches) nil)))
-
-(defn- col-def-str->col-type-length [^String col-def-str]
-  (let [col-type-str (col-def-str->type-str col-def-str)
-        col-length-str (col-def-str->length-str col-def-str)]
-    {:col-type col-type-str :col-length col-length-str}))
-
-(defn- col-type-signed-str->type-kw [col-type-str col-signed-str]
-  (if (nil? col-signed-str)
-    (keyword col-type-str)
-    (keyword (format "%s_%s" col-type-str col-signed-str))))
-
-(defn- col-def-str->col-map [^String col-def-str]
-  "Transform a column definition (i.e. 'int(11)') into map with column attributes"
-  (let [col-type-length (col-def-str->col-type-length col-def-str)
-        col-json-type (col-type->json-type-kw (:col-type col-type-length))
-        vrt-type-kw (keyword (col-def-str->type-str col-def-str))]
-     {:json-type col-json-type
-      :vrt-type-kw vrt-type-kw
-      :col-length (:col-length col-type-length)}))
-
+;; dispatcher
 (defn col-type->json-type [^String col-def-str]
   "Transform a mysql type string (i.e. 'int(10) unsigned') into a JSONSchema type"
-  (let [col-map (col-def-str->col-map col-def-str)]
+  (let [col-map (db-common/col-def-str->col-map col-def-str col-type->json-type-kw)]
     (col-map->json-type col-map)))
