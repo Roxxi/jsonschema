@@ -10,16 +10,8 @@
             [slingshot.slingshot :as slingshot]))
 
 ;; Vertica 6 Type Conversions
-;; ;; Some forward declarations
-;; (declare col-def-str->col-map)
-;; (declare col-def-str->type-str)
-;; (declare col-def-str->length-str)
-;; (declare col-def-str->col-type-length)
-;; (declare col-def-str-is-unsigned?)
-;; (declare min-or-default-num)
-;; (declare str-or-nil->int-or-nil)
 
-;; type mapping
+
 ;; TODO: clean this up to avoid duplicated typing
 ;; more like:
 ;;    :int ["tinyint" "smallint" ...]
@@ -133,32 +125,25 @@ Otherwise, pass binary type through."
 ;; CHARACTER
 ;; CHAR
 ;; VARCHAR
-(def str-synonym->str-type-kw
+(def str-synonyms
   {
    :character :char
    })
 
-(defn- translate-str-type [col-type-kw]
-  "If binary type is a synonym, translate to canonical type.
-Otherwise, pass binary type through."
-  (if (contains? str-synonym->str-type-kw col-type-kw)
-    (get str-synonym->str-type-kw col-type-kw)
-    col-type-kw))
-
 (def DEFAULT_CHAR_LENGTH 1)
 (def DEFAULT_VARCHAR_LENGTH 80)
-(def MAX_CHAR_LENGTH 65000)
-(def MAX_VARCHAR_LENGTH 65000)
+(def MAX_CHAR_LENGTH 65000) ;; also VARCHAR MAX
 
-(defn- str-type-kw->default-and-max-length [str-type-kw]
-  (cond
-   (= str-type-kw :char) [DEFAULT_CHAR_LENGTH MAX_CHAR_LENGTH]
-   (= str-type-kw :varchar) [DEFAULT_VARCHAR_LENGTH MAX_VARCHAR_LENGTH]
-   :else nil))
+(def str-type-kw->min-max
+  {
+   :char {:min DEFAULT_CHAR_LENGTH :max MAX_CHAR_LENGTH}
+   :varchar {:min DEFAULT_VARCHAR_LENGTH :max MAX_CHAR_LENGTH}
+   })
 
 (defmethod col-map->json-type :str [col-map]
   (let [n-col-length (db-common/str-or-nil->int-or-nil (:col-length col-map))
-        str-type-kw (translate-str-type (:col-type-kw col-map))
+        str-type-kw (db-common/translate-type
+                     (:col-type-kw col-map) str-synonyms)
         [default-length max-length]
         (str-type-kw->default-and-max-length str-type-kw)
         json-str-length (db-common/coalesce-with-limit
@@ -179,7 +164,7 @@ Otherwise, pass binary type through."
 ;; (we will alias INTERVAL to a Real type instead since it's
 ;; measuring a difference between two times)
 
-(def date-synonym->date-type-kw
+(def date-synonyms
   {
    :datetime :timestamp
    :smalldatetime :timestamp
@@ -194,15 +179,16 @@ Otherwise, pass binary type through."
 
 ;; TODO: move all these translation behavior into
 ;; a more type-agnostic function
-(defn- translate-date-type [col-type-kw]
-  "If date type is a synonym, translate to canonical type.
-Otherwise, pass date type through."
-  (if (contains? date-synonym->date-type-kw col-type-kw)
-    (get date-synonym->date-type-kw col-type-kw)
-    col-type-kw))
+;; (defn- translate-date-type [col-type-kw]
+;;   "If date type is a synonym, translate to canonical type.
+;; Otherwise, pass date type through."
+;;   (if (contains? date-synonym->date-type-kw col-type-kw)
+;;     (get date-synonym->date-type-kw col-type-kw)
+;;     col-type-kw))
 
 (defmethod col-map->json-type :date [col-map]
-  (let [date-type-kw (translate-date-type  (:col-type-kw col-map))
+  (let [date-type-kw (db-common/translate-type
+                      (:col-type-kw col-map) date-synonyms)
         date-format-patterns (date-type-kw date-type-kw->date-format-patterns)]
     (json-types/make-date date-format-patterns)))
 
@@ -227,7 +213,7 @@ Otherwise, pass date type through."
 ;; maybe something like:
 ;;    :double [:float :float8 :real]
 ;;    :numeric [:decimal :number :money :interval]
-(def real-synonym->real-type-kw
+(def real-synonyms
   {
    :float :double
    :float8 :double
@@ -238,13 +224,13 @@ Otherwise, pass date type through."
    :interval :numeric
    })
 
-;; TODO: refactor duplicated logic with other translate-*-type functions
-(defn- translate-real-type [col-type-kw]
-  "If real type is a synonym, translate to canonical type.
-Otherwise, pass real type through."
-  (if (contains? real-synonym->real-type-kw col-type-kw)
-    (get real-synonym->real-type-kw col-type-kw)
-    col-type-kw))
+;; ;; TODO: refactor duplicated logic with other translate-*-type functions
+;; (defn- translate-real-type [col-type-kw]
+;;   "If real type is a synonym, translate to canonical type.
+;; Otherwise, pass real type through."
+;;   (if (contains? real-synonym->real-type-kw col-type-kw)
+;;     (get real-synonym->real-type-kw col-type-kw)
+;;     col-type-kw))
 
 ;; The JVM also uses 64-bit IEEE 754 standard for its Double implementation
 ;; Let's piggyback on that for now
@@ -274,8 +260,9 @@ Otherwise, pass real type through."
    })
 
 (defmethod col-map->json-type :real [col-map]
-  (let [real-type-kw (translate-real-type (:col-type-kw col-map))
-        min-max (real-type-kw real-type-kw->min-max)]
+  (let [base-type-kw (db-common/translate-type
+                      (:col-type-kw col-map) real-synonyms)
+        min-max (base-type-kw real-type-kw->min-max)]
     (json-types/make-real (:min min-max) (:max min-max))))
 
 ;; dispatcher
@@ -283,3 +270,5 @@ Otherwise, pass real type through."
   "Transform a mysql type string (i.e. 'int(10) unsigned') into a JSONSchema type"
   (let [col-map (db-common/col-def-str->col-map col-def-str col-type->json-type-kw)]
     (col-map->json-type col-map)))
+
+;;(print-expr (db-common/translate-type :tinyint {:tinyint :int}))

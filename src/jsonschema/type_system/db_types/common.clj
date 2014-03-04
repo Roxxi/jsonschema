@@ -4,8 +4,6 @@
    :date "2/13/2014"}
   (:require [clojure.string :as string]))
 
-;; Common functions
-;; TODO: Refactor. Lots of duplication here with mysql.clj common functions
 (defn str-or-nil->int-or-nil [str-or-nil]
    (if (nil? str-or-nil) nil
        (read-string str-or-nil)))
@@ -14,6 +12,16 @@
   "If n-val is nil, return the n-default-val. If val is NOT nil,
 return the minimum of n-val and n-max-val"
   (if (nil? n-val) n-default-val (min n-val n-max-val)))
+
+(defn translate-type [col-type-kw col-type-syn-map]
+  "Translate a type keyword to the lower level type, if it is a synoynm. If not
+a synonym, pass type keyword through.
+For example:
+    (type-kw-and-synonyms->base-type-kw :tinyint {:tinyint :int}) -> :int
+    (type-kw-and-synonyms->base-type-kw :float {:tinyint :int}) -> :float"
+  (if (contains? col-type-syn-map col-type-kw)
+    (get col-type-syn-map col-type-kw)
+    col-type-kw))
 
 ;; TODO: write a more generic unsigned checker that can find
 ;; it anywhere in the type definition
