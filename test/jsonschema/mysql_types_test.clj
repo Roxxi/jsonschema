@@ -144,6 +144,18 @@
     (is (= (types/getMin str-type) 0))
     (is (= (types/getMax str-type) 65535))))
 
+(deftest mysql-enum->json-type-test []
+  (let [str-type (mysql-db-types/col-type->json-type "enum")]
+    (is (= (type str-type) jsonschema.type_system.types.Str))
+    (is (= (types/getMin str-type) 0))
+    (is (= (types/getMax str-type) 65535))))
+
+(deftest mysql-set->json-type-test []
+  (let [str-type (mysql-db-types/col-type->json-type "set")]
+    (is (= (type str-type) jsonschema.type_system.types.Str))
+    (is (= (types/getMin str-type) 0))
+    (is (= (types/getMax str-type) 65535))))
+
 ;; DATE TYPES
 (deftest mysql-date->json-type-test []
   (let [date-type (mysql-db-types/col-type->json-type "date")]
@@ -168,3 +180,11 @@
 (deftest mysql-boolean->json-type-test []
   (let [bool-type (mysql-db-types/col-type->json-type "boolean")]
     (is (= (type bool-type) jsonschema.type_system.types.Bool))))
+
+
+;; BIT
+(deftest mysql-bit->json-type-test []
+  (let [int-type (mysql-db-types/col-type->json-type "bit")]
+    (is (= (type int-type) jsonschema.type_system.types.Int))
+    (is (= (types/getMin int-type) 1))
+    (is (= (types/getMax int-type) 64))))

@@ -130,11 +130,12 @@ Otherwise, pass type argument through."
    :ntext (zipmap [:default :min :max] (repeat 3 (- (math/expt 2 30) 1)))
    })
 
+;; Multimethods for string column parameter handling.
+
 (defmulti str-col-map->default-min-max
   (fn [x]
     (:col-type-kw x)))
 
-;; Multimethods for column parameter handling.
 ;; Column parameters, if present, are hints to modify the
 ;; default limits of the column. For example, the n parameter
 ;; to varchar(n) will extend the default maximum length to n.
@@ -144,17 +145,11 @@ Otherwise, pass type argument through."
 ;; special handling of the column parameters and modify
 ;; the column limits. Otherwise, the default column limits will pass through.
 
-
-(defn read-string-or-nil [val]
-  (if (nil? val)
-    nil
-    (read-string val)))
-
 (defmethod str-col-map->default-min-max :varchar [col-map]
   "Special handling for varchar length parameter"
   (let [default-min-max (str-type-kw->default-min-max-length
                          (:col-type-kw col-map))
-        col-param-or-nil (read-string-or-nil (:col-length col-map))]
+        col-param-or-nil (db-common/str-or-nil->int-or-nil (:col-length col-map))]
     (condp = col-param-or-nil
       (symbol "max") (assoc default-min-max :max (- (math/expt 2 31) 1))
        nil default-min-max
@@ -179,6 +174,8 @@ Otherwise, pass type argument through."
                        (:default default-min-max)
                        (:max default-min-max))]
     {:min 1 :max coalesced-max}))
+
+;; End multimethods for string parameter handling ;;
 
 (defn- translate-str-type [col-type-kw]
   "If string type is a synonym, translate to canonical type.

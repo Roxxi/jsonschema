@@ -30,6 +30,8 @@
    "varchar" :str
    "blob" :str
    "text" :str
+   "enum" :str
+   "set" :str
    "boolean" :bool
    "bool" :bool
    "datetime" :date
@@ -48,13 +50,13 @@ like {:json-type :int :col-type-kw :int_unsigned :col-length 10}"
 ;; INTEGER TYPES
 ;; BIT
 ;; TINYINT
-;; BOOL/BOOLEAN
 ;; SMALLINT
 ;; MEDIUMINT
 ;; INT/INTEGER
 ;; BIGINT
 (def int-type->min-max
   {
+   :bit {:min 1 :max 64}
    :tinyint {:min -128 :max 127}
    :tinyint_unsigned {:min 0 :max 255}
    :smallint {:min -32768 :max 32767}
@@ -87,6 +89,8 @@ like {:json-type :int :col-type-kw :int_unsigned :col-length 10}"
 ;; Only some MySQL string types have implicit max length
 (def str-type->max
   {
+   :enum 65535
+   :set 65535
    :blob 65535
    :text 65535
 })
@@ -95,8 +99,14 @@ like {:json-type :int :col-type-kw :int_unsigned :col-length 10}"
 ;; VARCHAR
 ;; BLOB
 ;; TEXT
+
 ;; ENUM
+;; Difficult to determine the actual max string length. The documentation only
+;; mentions the limit to the number of max values. Feels like the limit of the
+;; enum string length is actually the MySQL row limit of 65535
+
 ;; SET
+;; Same for ENUM. Probably limited by MySQL row size limit of 65535
 
 ;; TODO: test case around thrown exception
 (defn- str-type-length->max [mysql-str-type-kw str-length-str]
