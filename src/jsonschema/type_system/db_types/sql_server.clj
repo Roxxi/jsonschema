@@ -7,6 +7,7 @@
             [roxxi.utils.print :refer [print-expr]]
             [jsonschema.type-system.types :as json-types]
             [jsonschema.type-system.db-types.common :as db-common]
+            [jsonschema.type-system.db-types.translator :as dt]
             [slingshot.slingshot :as slingshot]))
 
 ;; SQL Server (T-SQL) Type Conversions
@@ -284,14 +285,14 @@ Otherwise, pass real type through."
 ;; GEOGRAPHY
 ;; GEOMETRY
 
-;; (defn col-type->json-type [^String col-def-str]
-;;   "Transform a mysql type string (i.e. 'int(10) unsigned') into a JSONSchema type"
-;;   (let [col-map (db-common/col-def-str->col-map col-def-str col-type->json-type-kw)]
-;;     (col-map->json-type col-map)))
+(defn col-type->json-type [^String col-def-str]
+  "Transform a mysql type string (i.e. 'int(10) unsigned') into a JSONSchema type"
+  (let [col-map (db-common/col-def-str->col-map col-def-str col-type->json-type-kw)]
+    (col-map->json-type col-map)))
 
-(deftype SqlServerTypeTranslator
-    DBTypeTranslator
-  (col-type->json-type [_ ^String col-def-str]
+(deftype SqlServerTypeTranslator []
+    dt/DBTypeTranslator
+  (col-type->json-type [_ col-def-str]
     "Transform a mysql type string (i.e. 'int(10) unsigned') into a JSONSchema type"
     (let [col-map (db-common/col-def-str->col-map col-def-str col-type->json-type-kw)]
       (col-map->json-type col-map))))
