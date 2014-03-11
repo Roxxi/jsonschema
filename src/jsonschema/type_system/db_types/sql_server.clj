@@ -284,7 +284,17 @@ Otherwise, pass real type through."
 ;; GEOGRAPHY
 ;; GEOMETRY
 
-(defn col-type->json-type [^String col-def-str]
-  "Transform a mysql type string (i.e. 'int(10) unsigned') into a JSONSchema type"
-  (let [col-map (db-common/col-def-str->col-map col-def-str col-type->json-type-kw)]
-    (col-map->json-type col-map)))
+;; (defn col-type->json-type [^String col-def-str]
+;;   "Transform a mysql type string (i.e. 'int(10) unsigned') into a JSONSchema type"
+;;   (let [col-map (db-common/col-def-str->col-map col-def-str col-type->json-type-kw)]
+;;     (col-map->json-type col-map)))
+
+(deftype SqlServerTypeTranslator
+    DBTypeTranslator
+  (col-type->json-type [_ ^String col-def-str]
+    "Transform a mysql type string (i.e. 'int(10) unsigned') into a JSONSchema type"
+    (let [col-map (db-common/col-def-str->col-map col-def-str col-type->json-type-kw)]
+      (col-map->json-type col-map))))
+
+(defn make-sql-server-type-translator []
+  (SqlServerTypeTranslator. ))

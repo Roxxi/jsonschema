@@ -7,6 +7,7 @@
             [roxxi.utils.print :refer [print-expr]]
             [jsonschema.type-system.types :as json-types]
             [jsonschema.type-system.db-types.common :as db-common]
+            [jsonschema.type-system.db-types.translator :as dt]
             [slingshot.slingshot :as slingshot]))
 
 ;; MySQL 5.1 Type Conversions
@@ -159,10 +160,20 @@ For example:
     (keyword (format "%s_unsigned" (name col-type-kw)))
     col-type-kw))
 
-(defn col-type->json-type [^String col-def-str]
-  "Transform a mysql column type string (i.e. 'int(10) unsigned') into a JSONSchema type"
-  (let [col-map (db-common/col-def-str->col-map col-def-str col-type->json-type-kw)
-        signed-type-kw (col-def-str-and-type-kw->signed-type-kw col-def-str
-                                                                (:col-type-kw col-map))
-        col-map-with-signed-type-kw (assoc col-map :col-type-kw signed-type-kw)]
-    (col-map->json-type col-map-with-signed-type-kw)))
+;;;;;;;;;;;; Translator Implementation ;;;;;;;;;;;;;
+
+(deftype MysqlTypeTranslator []
+  dt/DBTypeTranslator
+  (col-type->json-type [_ col-def-str]
+    "Transform a mysql column type string (i.e. 'int(10) unsigned')
+into a JSONSchema type"
+    (let [col-map (db-common/col-def-str->col-map
+                   col-def-str col-type->json-type-kw)
+          signed-type-kw (col-def-str-and-type-kw->signed-type-kw
+                          col-def-str
+                          (:col-type-kw col-map))
+          col-map-with-signed-type-kw (assoc col-map :col-type-kw signed-type-kw)]
+      (col-map->json-type col-map-with-signed-type-kw))))
+
+(defn make-mysql-type-translator []
+  (MysqlTypeTranslator. ))

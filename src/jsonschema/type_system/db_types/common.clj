@@ -2,7 +2,8 @@
   "Common utilities for JSONSchema DB Types"
   {:author "Shawn Shah"
    :date "2/13/2014"}
-  (:require [clojure.string :as string]))
+  (:require [clojure.string :as string]
+            [jsonschema.type-system.db-types.translator :as dt]))
 
 (defn str-or-nil->int-or-nil [str-or-nil]
    (if (nil? str-or-nil) nil

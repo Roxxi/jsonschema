@@ -7,6 +7,7 @@
             [roxxi.utils.print :refer [print-expr]]
             [jsonschema.type-system.types :as json-types]
             [jsonschema.type-system.db-types.common :as db-common]
+            [jsonschema.type-system.db-types.translator :as dt]
             [slingshot.slingshot :as slingshot]))
 
 ;; Vertica 6 Type Conversions
@@ -136,8 +137,8 @@ Otherwise, pass binary type through."
 
 (def str-type-kw->min-max
   {
-   :char {:min DEFAULT_CHAR_LENGTH :max MAX_CHAR_LENGTH}
-   :varchar {:min DEFAULT_VARCHAR_LENGTH :max MAX_CHAR_LENGTH}
+   :char [DEFAULT_CHAR_LENGTH MAX_CHAR_LENGTH]
+   :varchar [DEFAULT_VARCHAR_LENGTH MAX_CHAR_LENGTH]
    })
 
 (defmethod col-map->json-type :str [col-map]
@@ -145,7 +146,7 @@ Otherwise, pass binary type through."
         str-type-kw (db-common/translate-type
                      (:col-type-kw col-map) str-synonyms)
         [default-length max-length]
-        (str-type-kw->default-and-max-length str-type-kw)
+        (str-type-kw->min-max str-type-kw)
         json-str-length (db-common/coalesce-with-limit
                          n-col-length default-length max-length)]
     (json-types/make-str json-str-length json-str-length)))
@@ -266,9 +267,20 @@ Otherwise, pass binary type through."
     (json-types/make-real (:min min-max) (:max min-max))))
 
 ;; dispatcher
-(defn col-type->json-type [^String col-def-str]
-  "Transform a mysql type string (i.e. 'int(10) unsigned') into a JSONSchema type"
-  (let [col-map (db-common/col-def-str->col-map col-def-str col-type->json-type-kw)]
-    (col-map->json-type col-map)))
+;; (defn col-type->json-type [^String col-def-str]
+;;   "Transform a mysql type string (i.e. 'int(10) unsigned') into a JSONSchema type"
+;;   (let [col-map (db-common/col-def-str->col-map col-def-str col-type->json-type-kw)]
+;;     (col-map->json-type col-map)))
 
 ;;(print-expr (db-common/translate-type :tinyint {:tinyint :int}))
+
+(deftype VerticaTypeTranslator []
+  dt/DBTypeTranslator
+  (col-type->json-type [_ col-def-str]
+    "Transform a mysql type string (i.e. 'int(10) unsigned') into a JSONSchema type"
+    (let [col-map (db-common/col-def-str->col-map col-def-str
+                                                  col-type->json-type-kw)]
+      (col-map->json-type col-map))))
+
+(defn make-vertica-type-translator []
+  (VerticaTypeTranslator. ))
