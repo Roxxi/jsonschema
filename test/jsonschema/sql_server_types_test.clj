@@ -6,6 +6,8 @@
             [jsonschema.type-system.types :as types]
             [jsonschema.type-system.db-types.sql-server :as sqls-types]))
 
+(def sql-server-tt (sql-types/make-sql-server-type-translator))
+
 ;;;;;;;;;;;;;;;; INTEGER TYPES ;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; (see: http://msdn.microsoft.com/en-us/library/ms187745.aspx)
