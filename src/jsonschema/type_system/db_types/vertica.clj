@@ -284,3 +284,15 @@ Otherwise, pass binary type through."
 
 (defn make-vertica-type-translator []
   (VerticaTypeTranslator. ))
+
+(def sample-vrt-table
+  [
+   "created_by" "int(8)"
+   "created_date" "timestamp(8)"
+   "is_deleted"  "int(8)"
+   "modified_by" "int(8)"
+   "modified_date" "timestamp(8)"
+   "product_id" "int(8)"
+   "product_to_sku_id" "int(8)"
+   "sku_id" "int(8)"
+   ])

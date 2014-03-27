@@ -270,3 +270,5 @@
     (is (= (type bin-type) jsonschema.type_system.types.Real))
     (is (= (types/getMin bin-type) vrt-types/MIN_IEEE_754_FLOAT))
     (is (= (types/getMax bin-type) vrt-types/MAX_IEEE_754_FLOAT))))
+
+;;;;;;;;;;;;;;;;;;;; TABLE -> JSON SCHEMA ;;;;;;;;;;;;;;;;;;;;;;;;;;

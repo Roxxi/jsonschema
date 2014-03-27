@@ -24,6 +24,7 @@
    "real" :real
    "float" :real
    "decimal" :real
+   "numeric" :real
    "money" :real
    "smallmoney" :real
    "date" :date
@@ -285,10 +286,11 @@ Otherwise, pass real type through."
 ;; GEOGRAPHY
 ;; GEOMETRY
 
-(defn col-type->json-type [^String col-def-str]
-  "Transform a mysql type string (i.e. 'int(10) unsigned') into a JSONSchema type"
-  (let [col-map (db-common/col-def-str->col-map col-def-str col-type->json-type-kw)]
-    (col-map->json-type col-map)))
+;
+;; (defn col-type->json-type [^String col-def-str]
+;;   "Transform a mysql type string (i.e. 'int(10) unsigned') into a JSONSchema type"
+;;   (let [col-map (db-common/col-def-str->col-map col-def-str col-type->json-type-kw)]
+;;     (col-map->json-type (print-expr col-map))))
 
 (deftype SqlServerTypeTranslator []
     dt/DBTypeTranslator

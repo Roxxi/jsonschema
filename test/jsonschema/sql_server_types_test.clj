@@ -66,6 +66,12 @@
     (is (= (types/getMin num-type) (+ (math/expt -10 38) 1)))
     (is (= (types/getMax num-type) (- (math/expt 10 38) 1)))))
 
+(deftest sqls-numeric->json-type-test []
+  (let [num-type (db/col-type->json-type sql-server-tt "numeric")]
+    (is (= (type num-type) jsonschema.type_system.types.Real))
+    (is (= (types/getMin num-type) (+ (math/expt -10 38) 1)))
+    (is (= (types/getMax num-type) (- (math/expt 10 38) 1)))))
+
 (deftest sqls-money->json-type-test []
   (let [num-type (db/col-type->json-type sql-server-tt "money")]
     (is (= (type num-type) jsonschema.type_system.types.Real))
