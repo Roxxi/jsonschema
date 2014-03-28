@@ -274,13 +274,47 @@ Otherwise, pass binary type through."
 
 ;;(print-expr (db-common/translate-type :tinyint {:tinyint :int}))
 
+;;;;;;;;;;;;;; BEGIN JSONSCHEMA->DB TYPE TRANSLATIONS ;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- dispatch-json-type->col-type [json-type]
+  (json-types/getType json-type))
+
+(defmulti map-json-type->col-type
+  #'dispatch-json-type->col-type)
+
+(defmethod map-json-type->col-type :int [json-type]
+  (let [max-val (json-types/getMax json-type)
+        int-max (-> int-type->min-max :int :max)]
+    (cond
+     (> max-val int-max) "bigint"
+     :else "int")))
+
+;; Seems like most MySQL string types have the same limits
+;; Just return a VARCHAR.
+(defmethod map-json-type->col-type :str [json-type]
+  (let [str-length (json-types/getMax json-type)]
+    (format "varchar(%d)" str-length)))
+
+(defmethod map-json-type->col-type :bool [json-type]
+  "bool")
+
+(defmethod map-json-type->col-type :real [json-type]
+  "decimal")
+
+;;;;;;;;;;;;;; END JSONSCHEMA->DB TYPE TRANSLATIONS ;;;;;;;;;;;;;;;;;;;;;;;
+
 (deftype VerticaTypeTranslator []
   dt/DBTypeTranslator
   (col-type->json-type [_ col-def-str]
     "Transform a mysql type string (i.e. 'int(10) unsigned') into a JSONSchema type"
     (let [col-map (db-common/col-def-str->col-map col-def-str
                                                   col-type->json-type-kw)]
-      (col-map->json-type col-map))))
+      (col-map->json-type col-map)))
+
+  (json-type->col-type [_ json-type]
+    "Transform a jsonschema type (i.e. jsonschema.type-system.types.Int{:min 0 :max 2147483647}
+into a mysql type (i.e. 'bigint')"
+    (map-json-type->col-type json-type)))
 
 (defn make-vertica-type-translator []
   (VerticaTypeTranslator. ))

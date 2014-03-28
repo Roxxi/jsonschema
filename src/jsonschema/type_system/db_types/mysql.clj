@@ -11,7 +11,7 @@
             [slingshot.slingshot :as slingshot]))
 
 ;; MySQL 5.1 Type Conversions
-;;;;;;;;;;;;;;;;;;;;;;; BEGIN TYPE TRANSLATIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;; BEGIN DB->JSONSCHEMA TYPE TRANSLATIONS ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; type mapping
 (def col-type->json-type-kw
@@ -147,7 +147,36 @@ like {:json-type :int :col-type-kw :int_unsigned :col-length 10}"
 (defmethod col-map->json-type :bool [col-map]
   (json-types/make-bool))
 
-;;;;;;;;;;;;;; END TYPE TRANSLATIONS ;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;; END DB->JSONSCHEMA TYPE TRANSLATIONS ;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;; BEGIN JSONSCHEMA->DB TYPE TRANSLATIONS ;;;;;;;;;;;;;;;;;;;;;;;
+
+(defn- dispatch-json-type->col-type [json-type]
+  (json-types/getType json-type))
+
+(defmulti map-json-type->col-type
+  #'dispatch-json-type->col-type)
+
+(defmethod map-json-type->col-type :int [json-type]
+  (let [max-val (json-types/getMax json-type)
+        int-max (-> int-type->min-max :int :max)]
+    (cond
+     (> max-val int-max) "bigint"
+     :else "int")))
+
+;; Seems like most MySQL string types have the same limits
+;; Just return a VARCHAR.
+(defmethod map-json-type->col-type :str [json-type]
+  (let [str-length (json-types/getMax json-type)]
+    (format "varchar(%d)" str-length)))
+
+(defmethod map-json-type->col-type :bool [json-type]
+  "bool")
+
+(defmethod map-json-type->col-type :real [json-type]
+  "decimal")
+
+;;;;;;;;;;;;;; END JSONSCHEMA->DB TYPE TRANSLATIONS ;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- col-def-str-and-type-kw->signed-type-kw [^String col-def-str col-type-kw]
   "Take a column type keyword and the column definition string. If column definition is of an unsigned type,
@@ -173,7 +202,12 @@ into a JSONSchema type"
                           col-def-str
                           (:col-type-kw col-map))
           col-map-with-signed-type-kw (assoc col-map :col-type-kw signed-type-kw)]
-      (col-map->json-type col-map-with-signed-type-kw))))
+      (col-map->json-type col-map-with-signed-type-kw)))
+
+  (json-type->col-type [_ json-type]
+    "Transform a jsonschema type (i.e. jsonschema.type-system.types.Int{:min 0 :max 2147483647}
+into a mysql type (i.e. 'bigint')"
+    (map-json-type->col-type json-type)))
 
 (defn make-mysql-type-translator []
   (MysqlTypeTranslator. ))

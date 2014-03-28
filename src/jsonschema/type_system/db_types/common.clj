@@ -7,23 +7,25 @@
             [jsonschema.type-system.db-types.translator :as dt]
             [jsonschema.type-system.types :as types]))
 
-(defmulti wider-than?
+(defmulti wider?
  (fn [l-type r-type]
     (print-expr [(types/getType l-type) (types/getType r-type)])
   ))
 
-(defmethod wider-than? [:int :str] [l-type r-type]
+(defmethod wider? [:int :str] [l-type r-type]
   (let [l-length (count (str (types/getMax l-type)))
         r-length (types/getMax r-type)]
     (> l-length r-length)))
 
-(defmethod wider-than? [:str :int] [l-type r-type]
+(defmethod wider? [:str :int] [l-type r-type]
   (let [l-length (types/getMax l-type)
         r-length (count (str (types/getMax r-type)))]
     (> l-length r-length)))
 
-(defmethod wider-than? :default [l-type r-type]
+(defmethod wider? :default [l-type r-type]
   (> (types/getMax l-type) (types/getMax r-type)))
+
+(def eq-width-or-narrower? (complement wider?))
 
 (defn str-or-nil->int-or-nil [str-or-nil]
    (if (nil? str-or-nil) nil

@@ -184,10 +184,38 @@
   (let [bool-type (dt/col-type->json-type mysql-tt "boolean")]
     (is (= (type bool-type) jsonschema.type_system.types.Bool))))
 
-
 ;; BIT
 (deftest mysql-bit->json-type-test []
   (let [int-type (dt/col-type->json-type mysql-tt "bit")]
     (is (= (type int-type) jsonschema.type_system.types.Int))
     (is (= (types/getMin int-type) 1))
     (is (= (types/getMax int-type) 64))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; REVERSE MAPPING
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(deftest schema-int->mysql-int []
+  (let [schema-int (types/make-int 1024)
+        mysql-int (dt/json-type->col-type mysql-tt schema-int)]
+    (is (= mysql-int "int"))))
+
+(deftest schema-int->mysql-bigint []
+  (let [schema-int (types/make-int 2147483648)
+        mysql-int (dt/json-type->col-type mysql-tt schema-int)]
+    (is (= mysql-int "bigint"))))
+
+(deftest schema-int->mysql-str []
+  (let [schema-str (types/make-str 1024 1024)
+        mysql-str (dt/json-type->col-type mysql-tt schema-str)]
+    (is (= mysql-str "varchar(1024)"))))
+
+(deftest schema-bool->mysql->bool []
+  (let [schema-bool (types/make-bool)
+        mysql-bool (dt/json-type->col-type mysql-tt schema-bool)]
+    (is (= mysql-bool "bool"))))
+
+(deftest schema-real->mysql-real []
+  (let [schema-real (types/make-real 1024 1024)
+        mysql-real (dt/json-type->col-type mysql-tt schema-real)]
+    (is (= mysql-real "decimal"))))
