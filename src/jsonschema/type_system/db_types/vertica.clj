@@ -282,12 +282,10 @@ Otherwise, pass binary type through."
 (defmulti map-json-type->col-type
   #'dispatch-json-type->col-type)
 
+;; the biggest numeric value we can store is a 64-bit int,
+;; so a normal INT should work here
 (defmethod map-json-type->col-type :int [json-type]
-  (let [max-val (json-types/getMax json-type)
-        int-max (-> int-type->min-max :int :max)]
-    (cond
-     (> max-val int-max) "bigint"
-     :else "int")))
+  "int")
 
 ;; Seems like most MySQL string types have the same limits
 ;; Just return a VARCHAR.

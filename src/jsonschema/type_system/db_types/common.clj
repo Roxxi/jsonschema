@@ -7,11 +7,19 @@
             [jsonschema.type-system.db-types.translator :as dt]
             [jsonschema.type-system.types :as types]))
 
+(defn- compare-types-with-operator [l-type r-type cmp-op]
+  (cmp-op l-type r-type))
+
+(defmulti type-width
+  (fn [json-type]
+    (types/getType json-type)))
+
 (defmulti wider?
  (fn [l-type r-type]
     (print-expr [(types/getType l-type) (types/getType r-type)])
   ))
 
+;; TODO: amount of code here can be reduced with hierarchy
 (defmethod wider? [:int :str] [l-type r-type]
   (let [l-length (count (str (types/getMax l-type)))
         r-length (types/getMax r-type)]
