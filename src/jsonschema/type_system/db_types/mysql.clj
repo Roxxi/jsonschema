@@ -176,6 +176,9 @@ like {:json-type :int :col-type-kw :int_unsigned :col-length 10}"
 (defmethod map-json-type->col-type :real [json-type]
   "decimal")
 
+(defmethod map-json-type->col-type :date [json-type]
+  "timestamp")
+
 ;;;;;;;;;;;;;; END JSONSCHEMA->DB TYPE TRANSLATIONS ;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- col-def-str-and-type-kw->signed-type-kw [^String col-def-str col-type-kw]

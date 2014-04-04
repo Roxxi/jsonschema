@@ -1,4 +1,4 @@
-(ns jsonschema.type-system.db-types.vertica
+-(ns jsonschema.type-system.db-types.vertica
   "Type translation from database column types to JSON schema types"
   {:author "Shawn Shah"
    :date "2/3/2014"}
@@ -45,6 +45,7 @@
    "number" :real
    "money" :real
    "decimal" :real
+   "numeric" :real
  })
 
 (defmulti col-map->json-type
@@ -223,6 +224,7 @@ Otherwise, pass binary type through."
    :number :numeric
    :money :numeric
    :interval :numeric
+   :numeric :numeric
    })
 
 ;; ;; TODO: refactor duplicated logic with other translate-*-type functions
@@ -298,6 +300,11 @@ Otherwise, pass binary type through."
 
 (defmethod map-json-type->col-type :real [json-type]
   "decimal")
+
+(defmethod map-json-type->col-type :date [json-type]
+  (if (= json-types/getType json-type :date)
+    "date"
+    "timestamp"))
 
 ;;;;;;;;;;;;;; END JSONSCHEMA->DB TYPE TRANSLATIONS ;;;;;;;;;;;;;;;;;;;;;;;
 
