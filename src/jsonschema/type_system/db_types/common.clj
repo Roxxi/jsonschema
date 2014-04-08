@@ -7,17 +7,19 @@
             [jsonschema.type-system.db-types.translator :as dt]
             [jsonschema.type-system.types :as types]))
 
-(defn- compare-types-with-operator [l-type r-type cmp-op]
-  (cmp-op l-type r-type))
+(defmulti wider? [l-type r-type]
+  (fn [l-type r-type]
+    [(types/getType l-type) (types/getType r-type)]))
 
-(defmulti type-width
-  (fn [json-type]
-    (types/getType json-type)))
+(defn- numeric-wider-than-str? [num-type str-type]
+  (let [num-length (types/getMax num-type)
+        str-length (count (str (types/getMax str-type)))]
+    (> num-length str-length)))
 
-(defmulti wider?
- (fn [l-type r-type]
-    (print-expr [(types/getType l-type) (types/getType r-type)])
-  ))
+(defn- str-wider-than-numeric? [str-type num-type]
+  (let [str-length (types/getMax str-type)
+        num-length (count (str (types/getMax num-type)))]
+    (> str-length num-length)))
 
 ;; TODO: amount of code here can be reduced with hierarchy
 (defmethod wider? [:int :str] [l-type r-type]
@@ -25,10 +27,90 @@
         r-length (types/getMax r-type)]
     (> l-length r-length)))
 
+(defn- date->max-date-fmt-length [date-type]
+  (apply max (map count (types/getFormats date-type))))
+
+;; bool -> other types
+
+(defmethod wider? [:bool :bool] [l-type r-type]
+  false)
+
+(defmethod wider? [:bool :int] [l-type r-type]
+  false)
+
+(defmethod wider? [:bool :real] [l-type r-type]
+  false)
+
+(defmethod wider? [:bool :date] [l-type r-type]
+  false)
+
+(defmethod wider? [:bool :str] [l-type r-type]
+  false)
+
+(defmethod wider? [:int :bool] [l-type r-type]
+  true)
+
+;; int -> other types
+
+(defmethod wider? [:int :bool] [l-type r-type]
+  true)
+
+;; int -> int handled by default
+;; int -> real handled by default
+;; int -> date
+(defmethod wider? [:int :date] [l-type r-type]
+  false)
+
+(defmethod wider? [:int :str] [l-type r-type]
+  (numeric-wider-than-str? l-type r-type))
+
+;; real -> other types
+
+(defmethod wider? [:real :bool] [l-type r-type]
+  true)
+
+;; real -> int handled by default
+
+(defmethod wider? [:real :str] [l-type r-type]
+  (numeric-wider-than-str? l-type r-type))
+
+(defmethod wider? [:real :date] [l-type r-type]
+  true)
+
+;; str -> other types
+
+(defmethod wider? [:str :bool] [l-type r-type]
+  (let [str-length (types/getMax l-type)]
+    (> str-length 1)))
+
 (defmethod wider? [:str :int] [l-type r-type]
-  (let [l-length (types/getMax l-type)
-        r-length (count (str (types/getMax r-type)))]
-    (> l-length r-length)))
+  (str-wider-than-numeric? l-type r-type))
+
+(defmethod wider? [:str :real] [l-type r-type]
+  (str-wider-than-numeric? l-type r-type))
+
+(defmethod wider? [:str :date] [l-type r-type]
+  (let [str-length (types/getMax l-type)
+        max-date-fmt-length (date->max-date-fmt-length r-type)]
+    (> str-length max-date-fmt-length)))
+
+;; date -> other types
+
+(defmethod wider? [:date :bool] [l-type r-type]
+  true)
+
+(defmethod wider? [:date :int] [l-type r-type]
+  true)
+
+(defmethod wider? [:date :real] [l-type r-type]
+  true)
+
+(defmethod wider? [:date :str] [l-type r-type]
+  (let [max-date-fmt-length (date->max-date-fmt-length r-type)
+        str-length (types/getMax l-type)]
+    (> max-date-fmt-length str-length)))
+
+;; default
 
 (defmethod wider? :default [l-type r-type]
   (> (types/getMax l-type) (types/getMax r-type)))
