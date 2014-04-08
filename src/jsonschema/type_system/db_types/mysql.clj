@@ -133,9 +133,9 @@ like {:json-type :int :col-type-kw :int_unsigned :col-length 10}"
   (let [date-fmt-str "yyyy-MM-dd"
         datetime-fmt-str "yyyy-MM-dd HH:mm:ss"]
     (condp = date-type-str
-      :date "yyyy-MM-dd"
-      :datetime datetime-fmt-str
-      :timestamp datetime-fmt-str)))
+      :date #{"yyyy-MM-dd"}
+      :datetime #{datetime-fmt-str}
+      :timestamp #{datetime-fmt-str})))
 
 (defmethod col-map->json-type :date [col-map]
   (let [date-fmt-pattern (col-type-kw->date-format-pattern

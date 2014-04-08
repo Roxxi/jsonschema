@@ -7,10 +7,6 @@
             [jsonschema.type-system.db-types.translator :as dt]
             [jsonschema.type-system.types :as types]))
 
-(defmulti wider? [l-type r-type]
-  (fn [l-type r-type]
-    [(types/getType l-type) (types/getType r-type)]))
-
 (defn- numeric-wider-than-str? [num-type str-type]
   (let [num-length (types/getMax num-type)
         str-length (count (str (types/getMax str-type)))]
@@ -21,11 +17,9 @@
         num-length (count (str (types/getMax num-type)))]
     (> str-length num-length)))
 
-;; TODO: amount of code here can be reduced with hierarchy
-(defmethod wider? [:int :str] [l-type r-type]
-  (let [l-length (count (str (types/getMax l-type)))
-        r-length (types/getMax r-type)]
-    (> l-length r-length)))
+(defmulti wider?
+  (fn [l-type r-type]
+    [(types/getType l-type) (types/getType r-type)]))
 
 (defn- date->max-date-fmt-length [date-type]
   (apply max (map count (types/getFormats date-type))))
@@ -109,6 +103,11 @@
   (let [max-date-fmt-length (date->max-date-fmt-length r-type)
         str-length (types/getMax l-type)]
     (> max-date-fmt-length str-length)))
+
+(defmethod wider? [:date :date] [l-type r-type]
+  (let [l-max-date-fmt-length (date->max-date-fmt-length r-type)
+        r-max-date-fmt-length (date->max-date-fmt-length r-type)]
+    (> l-max-date-fmt-length r-max-date-fmt-length)))
 
 ;; default
 
