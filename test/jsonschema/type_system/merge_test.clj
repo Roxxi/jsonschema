@@ -318,7 +318,19 @@
 ;; ## Document - Incongruent Merging
 
 (def merged-one-two-type
-  #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Document{:properties #{:a}, :map {:a #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Int{:min 7, :max 8}}}}}} #jsonschema.type_system.types.Document{:properties #{:a :b}, :map {:a #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}}, :b #jsonschema.type_system.types.Str{:min 16, :max 16}}}}})
+  #jsonschema.type_system.types.Union{:union-of #{
+                                        #jsonschema.type_system.types.Document{
+                                                    :properties #{:a},
+                                                    :map {
+                                                          :a #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Null{} #jsonschema.type_system.types.Int{:min 7, :max 8}}}}}
+                                        }
+                                        #jsonschema.type_system.types.Document{
+                                                    :properties #{:a :b},
+                                                    :map {
+                                                          :a #jsonschema.type_system.types.Collection{:coll-of #jsonschema.type_system.types.Int{:min 1, :max 3}},
+                                                          :b #jsonschema.type_system.types.Str{:min 16, :max 16}}
+                                       }
+                                                  }})
 
 (deftest doc-incongruent-merging-tests
   (testing "Merging a document with any kind of **incongruent** document type

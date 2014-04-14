@@ -438,11 +438,11 @@
                                         "hi" 5  [4 5 6]
                                         [7 8 9] "hi" [7 8 9]
                                         42 {:a "crazy"} {:a "hello"}])
-          reversed-types (reverse some-types)
-          merged-type (apply simplify-types some-types)
-          reverse-merged-type (apply simplify-types reversed-types)]
-      (is (= merged-type reverse-merged-type))
-      (is (= merged-type
+          reversed-types (reverse (print-expr some-types))
+          simplified-type (print-expr (apply simplify-types some-types))
+          reverse-simplified-type (apply simplify-types reversed-types)]
+      (is (= simplified-type reverse-simplified-type))
+      (is (= simplified-type
              #jsonschema.type_system.types.Union{:union-of #{#jsonschema.type_system.types.Int{:min 5, :max 42}
                                                              #jsonschema.type_system.types.Str{:min 2, :max 5}
                                                              #jsonschema.type_system.types.Document{:properties #{:a}, :map {:a #jsonschema.type_system.types.Str{:min 5, :max 5}}}
@@ -483,5 +483,5 @@
   (testing "Union - Document"
     (testing "Empty union with a document"
       (let [empty-union (make-union #{})]
-        (merged-is empty-union a-doc-type
+          (merged-is empty-union a-doc-type
                    a-doc-type)))))
