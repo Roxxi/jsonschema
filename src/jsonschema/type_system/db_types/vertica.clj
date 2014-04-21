@@ -36,6 +36,7 @@
    "date" :date
    "datetime" :date
    "timestamp" :date
+   "timestamptz" :date
    "interval" :real
    "smalldatetime" :date
    "double" :real
@@ -170,6 +171,7 @@ Otherwise, pass binary type through."
   {
    :datetime :timestamp
    :smalldatetime :timestamp
+   :timestamptz :timestamp
    })
 
 (def date-type-kw->date-format-patterns
