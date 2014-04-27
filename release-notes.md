@@ -1,3 +1,6 @@
+##v1.2.1
+- Support Vertica timestamptz, alias to timestamp
+
 ##v1.2.0
 
 ####New Features
