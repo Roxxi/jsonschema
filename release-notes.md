@@ -1,3 +1,10 @@
+##v1.2.0
+
+####New Features
+- Simple type translator
+  - Allows for types to be declared with simple strings like
+    (e.g. "int", "str")
+
 ##v1.1.0
 
 ####New Features
