@@ -30,7 +30,11 @@
    "char" :str
    "varchar" :str
    "blob" :str
+   "mediumblob" :str
+   "longblob" :str
    "text" :str
+   "mediumtext" :str
+   "longtext" :str
    "enum" :str
    "set" :str
    "boolean" :bool
@@ -88,12 +92,23 @@ like {:json-type :int :col-type-kw :int_unsigned :col-length 10}"
 
 ;; String
 ;; Only some MySQL string types have implicit max length
+(def MYSQL_STR_LENGTH_MAX 65535)
+
+;; MEDIUMTEXT/LONGTEXT (see: http://dev.mysql.com/doc/refman/5.6/en/blob.html)
+(def MEDIUMTEXT_LENGTH_MAX (- (math/expt 2 24) 1))
+(def LONGTEXT_LENGTH_MAX (- (math/expt 2 32) 1))
+
 (def str-type->max
   {
-   :enum 65535
-   :set 65535
-   :blob 65535
-   :text 65535
+   :varchar MYSQL_STR_LENGTH_MAX
+   :enum MYSQL_STR_LENGTH_MAX
+   :set MYSQL_STR_LENGTH_MAX
+   :blob MYSQL_STR_LENGTH_MAX
+   :text MYSQL_STR_LENGTH_MAX
+   :mediumtext MEDIUMTEXT_LENGTH_MAX
+   :longtext LONGTEXT_LENGTH_MAX
+   :mediumblob MEDIUMTEXT_LENGTH_MAX
+   :longblob LONGTEXT_LENGTH_MAX
 })
 
 ;; CHAR
@@ -166,9 +181,17 @@ like {:json-type :int :col-type-kw :int_unsigned :col-length 10}"
 
 ;; Seems like most MySQL string types have the same limits
 ;; Just return a VARCHAR.
+;; (defmethod map-json-type->col-type :str [json-type]
+;;   (let [str-length (min (json-types/getMax json-type) MYSQL_STR_LENGTH_MAX)]
+;;     (format "varchar(%d)" str-length)))
+
 (defmethod map-json-type->col-type :str [json-type]
   (let [str-length (json-types/getMax json-type)]
-    (format "varchar(%d)" str-length)))
+    (cond
+      (>= MYSQL_STR_LENGTH_MAX str-length) (format "varchar(%d)" str-length)
+      (>= MEDIUMTEXT_LENGTH_MAX str-length) "mediumtext"
+      (>= LONGTEXT_LENGTH_MAX str-length) "longtext"
+      :else (slingshot/throw+ (format "unsupported string length of %d" str-length)))))
 
 (defmethod map-json-type->col-type :bool [json-type]
   "bool")
