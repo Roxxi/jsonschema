@@ -277,30 +277,35 @@
 
 (deftest schema-int->vrt-int []
   (let [schema-int (types/make-int 1024)
-        mysql-int (dt/json-type->col-type mysql-tt schema-int)]
-    (is (= mysql-int "int"))))
+        vrt-int (dt/json-type->col-type vertica-tt schema-int)]
+    (is (= vrt-int "int"))))
 
 (deftest schema-int->vrt-bigint []
-  (let [schema-int (types/make-int 2147483648)
-        mysql-int (dt/json-type->col-type mysql-tt schema-int)]
-    (is (= mysql-int "bigint"))))
+  (let [schema-int (types/make-int 9223372036854775807)
+        vrt-int (dt/json-type->col-type vertica-tt schema-int)]
+    (is (= vrt-int "int"))))
 
-(deftest schema-int->vrt-str []
+(deftest schema-int->vrt-bigint []
+  (let [schema-int (types/make-int 9223372036854775808)]
+    (is (thrown? clojure.lang.ExceptionInfo
+                 (dt/json-type->col-type vertica-tt schema-int)))))
+
+(deftest schema-varchar->vrt-str []
   (let [schema-str (types/make-str 1024 1024)
-        mysql-str (dt/json-type->col-type mysql-tt schema-str)]
-    (is (= mysql-str "varchar(1024)"))))
+        vrt-str (dt/json-type->col-type vertica-tt schema-str)]
+    (is (= vrt-str "varchar(1024)"))))
 
-(deftest schema-int->vrt-big-str []
-  (let [schema-str (types/make-str 66000 66000)
-        mysql-str (dt/json-type->col-type mysql-tt schema-str)]
-    (is (= mysql-str "varbinary"))))
+(deftest schema-big-varchar->vrt-str []
+  (let [schema-str (types/make-str 70000 70000)
+        vrt-str (dt/json-type->col-type vertica-tt schema-str)]
+    (is (= vrt-str "varchar(65000)"))))
 
 (deftest schema-bool->vrt->bool []
   (let [schema-bool (types/make-bool)
-        mysql-bool (dt/json-type->col-type mysql-tt schema-bool)]
-    (is (= mysql-bool "bool"))))
+        vrt-bool (dt/json-type->col-type vertica-tt schema-bool)]
+    (is (= vrt-bool "bool"))))
 
 (deftest schema-real->vrt-real []
   (let [schema-real (types/make-real 1024 1024)
-        mysql-real (dt/json-type->col-type mysql-tt schema-real)]
-    (is (= mysql-real "decimal"))))
+        vrt-real (dt/json-type->col-type vertica-tt schema-real)]
+    (is (= vrt-real "decimal"))))

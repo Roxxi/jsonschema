@@ -1,4 +1,4 @@
-(defproject com.onekingslane.danger/jsonschema "1.2.1"
+(defproject com.onekingslane.danger/jsonschema "1.2.2"
   :description "Library to help you derive schemas from arbirary collections of JSON"
   :license {:name "GNU General Public License Version 3"
             :url "http://www.gnu.org/licenses/gpl-3.0.html"}

@@ -1,4 +1,4 @@
--(ns jsonschema.type-system.db-types.vertica
+(ns jsonschema.type-system.db-types.vertica
   "Type translation from database column types to JSON schema types"
   {:author "Shawn Shah"
    :date "2/3/2014"}
@@ -289,12 +289,19 @@ Otherwise, pass binary type through."
 ;; the biggest numeric value we can store is a 64-bit int,
 ;; so a normal INT should work here
 (defmethod map-json-type->col-type :int [json-type]
-  "int")
+  (let [type-max (json-types/getMax json-type)]
+  (if  (>= SIGNED_64_INT_MAX type-max)
+    "int"
+    (slingshot/throw+
+     (format "integer range out of bounds (%s) for Vertica Int (max: %s)"
+             type-max
+             SIGNED_64_INT_MAX))
+    )))
 
 ;; Seems like most MySQL string types have the same limits
 ;; Just return a VARCHAR.
 (defmethod map-json-type->col-type :str [json-type]
-  (let [str-length (json-types/getMax json-type)]
+  (let [str-length (min (json-types/getMax json-type) MAX_CHAR_LENGTH)]
     (format "varchar(%d)" str-length)))
 
 (defmethod map-json-type->col-type :bool [json-type]
